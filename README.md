@@ -58,7 +58,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ADMIN_EMAIL=admin@srisriwellbeingchennai.com
 ADMIN_PASSWORD=ChangeMe123!
 PROJECT_NAME=Sri Sri Wellbeing Chennai API
-FRONTEND_ORIGIN=http://localhost:3000
+FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com
 ```
 
 ## Local Setup
@@ -148,6 +148,6 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 
 ## Notes
 
-- CORS is restricted to the single origin configured in `FRONTEND_ORIGIN`.
-- The backend uses Alembic migrations, but `main.py` also calls `Base.metadata.create_all(...)` during startup.
+- CORS is restricted to the comma-separated origins configured in `FRONTEND_ORIGIN`.
+- The backend relies on Alembic migrations for schema changes and no longer creates tables during app startup.
 - `.env.example` is intended to stay committed, while `.env` should remain local only.

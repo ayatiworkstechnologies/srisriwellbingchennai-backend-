@@ -64,7 +64,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ADMIN_EMAIL=admin@srisriwellbeingchennai.com
 ADMIN_PASSWORD=ChangeMe123!
 PROJECT_NAME=Sri Sri Wellbeing Chennai API
-FRONTEND_ORIGIN=http://localhost:3000
+FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com
 ```
 
 ## 6. Run database migrations
@@ -99,7 +99,7 @@ If everything is working, you should get a successful response from the health e
 
 - On app startup, the project also creates tables and seeds default data.
 - The admin user is seeded using `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
-- CORS allows the frontend origin set in `FRONTEND_ORIGIN`.
+- CORS allows the comma-separated origins set in `FRONTEND_ORIGIN`.
 - This project uses FastAPI, SQLAlchemy, Alembic, and MySQL.
 
 ## Common Commands

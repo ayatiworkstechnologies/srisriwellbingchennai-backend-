@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,6 +36,11 @@ class Settings(BaseSettings):
                 "Set DATABASE_URL to your MySQL service host, for example "
                 "'mysql+pymysql://USER:PASSWORD@mysql:3306/DBNAME' or your external MySQL host."
             )
+
+    @computed_field
+    @property
+    def frontend_origins(self) -> list[str]:
+        return [origin.strip().rstrip("/") for origin in self.frontend_origin.split(",") if origin.strip()]
 
 
 @lru_cache
