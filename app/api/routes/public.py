@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from ..content_helpers import create_entity, list_active_entities
+from ..content_helpers import create_entity, list_active_categories, list_active_entities, list_active_entities_by_category
 from ...database import get_db
 from ...models import (
     AlternativeTreatment,
@@ -23,6 +23,7 @@ from ...schemas import (
     AlternativeTreatmentResponse,
     BookingCancelRequest,
     BookingCancelResponse,
+    ContentCategoryResponse,
     InquiryCreate,
     InquiryResponse,
     NadiCampResponse,
@@ -58,54 +59,81 @@ from ...services.content import (
 router = APIRouter(prefix="/api/v1")
 
 
-@router.post("/inquiries", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/contact/inquiries", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED, tags=["Public Contact"])
+@router.post("/inquiries", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_inquiry(payload: InquiryCreate, db: Session = Depends(get_db)):
     return create_entity(Inquiry, payload, db)
 
 
-@router.get("/public/services", response_model=list[ServiceResponse])
+@router.get("/content/services", response_model=list[ServiceResponse], tags=["Public Content"])
+@router.get("/public/services", response_model=list[ServiceResponse], include_in_schema=False)
 def list_public_services(db: Session = Depends(get_db)):
     items = list_active_entities(Service, db)
     return [as_service(item) for item in items]
 
 
-@router.get("/public/testimonials", response_model=list[TestimonialResponse])
+@router.get("/content/testimonials", response_model=list[TestimonialResponse], tags=["Public Content"])
+@router.get("/public/testimonials", response_model=list[TestimonialResponse], include_in_schema=False)
 def list_public_testimonials(db: Session = Depends(get_db)):
     items = list_active_entities(Testimonial, db)
     return [as_testimonial(item) for item in items]
 
 
-@router.get("/public/nadi-camps", response_model=list[NadiCampResponse])
+@router.get("/content/nadi-camps", response_model=list[NadiCampResponse], tags=["Public Content"])
+@router.get("/public/nadi-camps", response_model=list[NadiCampResponse], include_in_schema=False)
 def list_public_nadi_camps(db: Session = Depends(get_db)):
     items = list_active_entities(NadiCamp, db)
     return [as_nadi_camp(item) for item in items]
 
 
-@router.get("/public/relaxation-therapies", response_model=list[RelaxationTherapyResponse])
+@router.get("/content/relaxation-therapies", response_model=list[RelaxationTherapyResponse], tags=["Public Content"])
+@router.get("/public/relaxation-therapies", response_model=list[RelaxationTherapyResponse], include_in_schema=False)
 def list_public_relaxation_therapies(db: Session = Depends(get_db)):
     items = list_active_entities(RelaxationTherapy, db)
     return [as_relax(item) for item in items]
 
 
-@router.get("/public/alternative-treatments", response_model=list[AlternativeTreatmentResponse])
-def list_public_alternative_treatments(db: Session = Depends(get_db)):
-    items = list_active_entities(AlternativeTreatment, db)
+@router.get("/content/alternative-treatments", response_model=list[AlternativeTreatmentResponse], tags=["Public Content"])
+@router.get("/public/alternative-treatments", response_model=list[AlternativeTreatmentResponse], include_in_schema=False)
+def list_public_alternative_treatments(
+    category: str | None = Query(default=None, min_length=2),
+    db: Session = Depends(get_db),
+):
+    items = list_active_entities_by_category(AlternativeTreatment, category, db)
     return [as_alt(item) for item in items]
 
 
-@router.get("/public/panchakarma-core-therapies", response_model=list[PanchakarmaCoreTherapyResponse])
+@router.get("/content/alternative-treatment-categories", response_model=list[ContentCategoryResponse], tags=["Public Content"])
+@router.get("/public/alternative-treatments/categories", response_model=list[ContentCategoryResponse], include_in_schema=False)
+def list_public_alternative_treatment_categories(db: Session = Depends(get_db)):
+    return [ContentCategoryResponse(category=category, item_count=item_count) for category, item_count in list_active_categories(AlternativeTreatment, db)]
+
+
+@router.get("/content/panchakarma/core-therapies", response_model=list[PanchakarmaCoreTherapyResponse], tags=["Public Content"])
+@router.get("/public/panchakarma-core-therapies", response_model=list[PanchakarmaCoreTherapyResponse], include_in_schema=False)
 def list_public_panchakarma_core_therapies(db: Session = Depends(get_db)):
     items = list_active_entities(PanchakarmaCoreTherapy, db)
     return [as_pk_core(item) for item in items]
 
 
-@router.get("/public/panchakarma-other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse])
-def list_public_panchakarma_other_treatments(db: Session = Depends(get_db)):
-    items = list_active_entities(PanchakarmaOtherTreatment, db)
+@router.get("/content/panchakarma/other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse], tags=["Public Content"])
+@router.get("/public/panchakarma-other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse], include_in_schema=False)
+def list_public_panchakarma_other_treatments(
+    category: str | None = Query(default=None, min_length=2),
+    db: Session = Depends(get_db),
+):
+    items = list_active_entities_by_category(PanchakarmaOtherTreatment, category, db)
     return [as_pk_other(item) for item in items]
 
 
-@router.get("/public/booking-slots", response_model=list[PublicBookingSlotResponse])
+@router.get("/content/panchakarma/other-treatment-categories", response_model=list[ContentCategoryResponse], tags=["Public Content"])
+@router.get("/public/panchakarma-other-treatments/categories", response_model=list[ContentCategoryResponse], include_in_schema=False)
+def list_public_panchakarma_other_treatment_categories(db: Session = Depends(get_db)):
+    return [ContentCategoryResponse(category=category, item_count=item_count) for category, item_count in list_active_categories(PanchakarmaOtherTreatment, db)]
+
+
+@router.get("/booking/slots", response_model=list[PublicBookingSlotResponse], tags=["Public Booking"])
+@router.get("/public/booking-slots", response_model=list[PublicBookingSlotResponse], include_in_schema=False)
 def list_public_booking_slots(
     therapy_name: str = Query(min_length=2),
     booking_date: date | None = Query(default=None),
@@ -123,7 +151,8 @@ def list_public_booking_slots(
     return [as_public_booking_slot(item, db) for item in items if get_remaining_capacity(item, db) > 0]
 
 
-@router.get("/public/therapy-availability", response_model=list[PublicTherapyAvailabilityResponse])
+@router.get("/booking/availability", response_model=list[PublicTherapyAvailabilityResponse], tags=["Public Booking"])
+@router.get("/public/therapy-availability", response_model=list[PublicTherapyAvailabilityResponse], include_in_schema=False)
 def list_public_therapy_availability(
     therapy_name: str = Query(min_length=2),
     booking_date: date = Query(),
@@ -132,7 +161,8 @@ def list_public_therapy_availability(
     return build_public_availability(therapy_name, booking_date, db)
 
 
-@router.post("/public/bookings", response_model=TherapyBookingResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/booking/appointments", response_model=TherapyBookingResponse, status_code=status.HTTP_201_CREATED, tags=["Public Booking"])
+@router.post("/public/bookings", response_model=TherapyBookingResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(get_db)):
     therapist = db.query(Therapist).filter(Therapist.id == payload.therapist_id, Therapist.is_active == "true").first()
     if not therapist:
@@ -168,7 +198,8 @@ def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(g
     return serialize_booking(item)
 
 
-@router.post("/public/bookings/cancel", response_model=BookingCancelResponse)
+@router.post("/booking/appointments/cancel", response_model=BookingCancelResponse, tags=["Public Booking"])
+@router.post("/public/bookings/cancel", response_model=BookingCancelResponse, include_in_schema=False)
 def cancel_public_booking(payload: BookingCancelRequest, db: Session = Depends(get_db)):
     item = (
         db.query(TherapyBooking)

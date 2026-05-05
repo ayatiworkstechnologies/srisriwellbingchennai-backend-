@@ -50,6 +50,11 @@ class DashboardResponse(BaseModel):
     closed_inquiries: int
 
 
+class ContentCategoryResponse(BaseModel):
+    category: str
+    item_count: int
+
+
 class ServiceBase(BaseModel):
     title: str = Field(min_length=2, max_length=255)
     description: str = Field(min_length=10, max_length=5000)

@@ -94,7 +94,8 @@ from ..deps import get_current_admin
 router = APIRouter(prefix="/api/v1/admin")
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse, tags=["Admin Auth"])
+@router.post("/login", response_model=TokenResponse, include_in_schema=False)
 def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
     admin = db.query(AdminUser).filter(AdminUser.email == payload.email).first()
     if not admin or not verify_password(payload.password, admin.hashed_password):
@@ -102,7 +103,8 @@ def admin_login(payload: AdminLoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=create_access_token(admin.email))
 
 
-@router.get("/dashboard", response_model=DashboardResponse)
+@router.get("/dashboard/stats", response_model=DashboardResponse, tags=["Admin Dashboard"])
+@router.get("/dashboard", response_model=DashboardResponse, include_in_schema=False)
 def admin_dashboard(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return DashboardResponse(
         total_inquiries=db.query(func.count(Inquiry.id)).scalar() or 0,
@@ -112,7 +114,8 @@ def admin_dashboard(_: AdminUser = Depends(get_current_admin), db: Session = Dep
     )
 
 
-@router.get("/inquiries", response_model=list[InquiryResponse])
+@router.get("/crm/inquiries", response_model=list[InquiryResponse], tags=["Admin CRM"])
+@router.get("/inquiries", response_model=list[InquiryResponse], include_in_schema=False)
 def list_inquiries(
     _: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
@@ -124,7 +127,14 @@ def list_inquiries(
     return query.all()
 
 
-@router.patch("/inquiries/{inquiry_id}", response_model=InquiryResponse)
+@router.get("/crm/inquiries/{inquiry_id}", response_model=InquiryResponse, tags=["Admin CRM"])
+@router.get("/inquiries/{inquiry_id}", response_model=InquiryResponse, include_in_schema=False)
+def get_inquiry(inquiry_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return get_entity_or_404(Inquiry, inquiry_id, "Inquiry", db)
+
+
+@router.patch("/crm/inquiries/{inquiry_id}", response_model=InquiryResponse, tags=["Admin CRM"])
+@router.patch("/inquiries/{inquiry_id}", response_model=InquiryResponse, include_in_schema=False)
 def update_inquiry_status(
     inquiry_id: int,
     payload: InquiryStatusUpdate,
@@ -135,85 +145,129 @@ def update_inquiry_status(
     return update_entity(item, payload, db)
 
 
-@router.get("/services", response_model=list[ServiceResponse])
+@router.delete("/crm/inquiries/{inquiry_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin CRM"])
+@router.delete("/inquiries/{inquiry_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+def delete_inquiry(inquiry_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return delete_entity(Inquiry, inquiry_id, "Inquiry", db)
+
+
+@router.get("/content/services", response_model=list[ServiceResponse], tags=["Admin Content"])
+@router.get("/services", response_model=list[ServiceResponse], include_in_schema=False)
 def list_admin_services(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(Service, db)
     return [as_service(item) for item in items]
 
 
-@router.post("/services", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/services/{entity_id}", response_model=ServiceResponse, tags=["Admin Content"])
+@router.get("/services/{entity_id}", response_model=ServiceResponse, include_in_schema=False)
+def get_service(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_service(get_entity_or_404(Service, entity_id, "Service", db))
+
+
+@router.post("/content/services", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/services", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_service(payload: ServiceCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(Service, payload, db, is_active=as_active_flag(payload.is_active))
     return as_service(item)
 
 
-@router.put("/services/{entity_id}", response_model=ServiceResponse)
+@router.put("/content/services/{entity_id}", response_model=ServiceResponse, tags=["Admin Content"])
+@router.put("/services/{entity_id}", response_model=ServiceResponse, include_in_schema=False)
 def update_service(entity_id: int, payload: ServiceUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(Service, entity_id, "Service", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return as_service(item)
 
 
-@router.delete("/services/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/services/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/services/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_service(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(Service, entity_id, "Service", db)
 
 
-@router.get("/testimonials", response_model=list[TestimonialResponse])
+@router.get("/content/testimonials", response_model=list[TestimonialResponse], tags=["Admin Content"])
+@router.get("/testimonials", response_model=list[TestimonialResponse], include_in_schema=False)
 def list_admin_testimonials(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(Testimonial, db)
     return [as_testimonial(item) for item in items]
 
 
-@router.post("/testimonials", response_model=TestimonialResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/testimonials/{entity_id}", response_model=TestimonialResponse, tags=["Admin Content"])
+@router.get("/testimonials/{entity_id}", response_model=TestimonialResponse, include_in_schema=False)
+def get_testimonial(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_testimonial(get_entity_or_404(Testimonial, entity_id, "Testimonial", db))
+
+
+@router.post("/content/testimonials", response_model=TestimonialResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/testimonials", response_model=TestimonialResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_testimonial(payload: TestimonialCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(Testimonial, payload, db, is_active=as_active_flag(payload.is_active))
     return as_testimonial(item)
 
 
-@router.put("/testimonials/{entity_id}", response_model=TestimonialResponse)
+@router.put("/content/testimonials/{entity_id}", response_model=TestimonialResponse, tags=["Admin Content"])
+@router.put("/testimonials/{entity_id}", response_model=TestimonialResponse, include_in_schema=False)
 def update_testimonial(entity_id: int, payload: TestimonialUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(Testimonial, entity_id, "Testimonial", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return as_testimonial(item)
 
 
-@router.delete("/testimonials/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/testimonials/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/testimonials/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_testimonial(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(Testimonial, entity_id, "Testimonial", db)
 
 
-@router.get("/nadi-camps", response_model=list[NadiCampResponse])
+@router.get("/content/nadi-camps", response_model=list[NadiCampResponse], tags=["Admin Content"])
+@router.get("/nadi-camps", response_model=list[NadiCampResponse], include_in_schema=False)
 def list_admin_nadi_camps(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(NadiCamp, db)
     return [as_nadi_camp(item) for item in items]
 
 
-@router.post("/nadi-camps", response_model=NadiCampResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/nadi-camps/{entity_id}", response_model=NadiCampResponse, tags=["Admin Content"])
+@router.get("/nadi-camps/{entity_id}", response_model=NadiCampResponse, include_in_schema=False)
+def get_nadi_camp(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_nadi_camp(get_entity_or_404(NadiCamp, entity_id, "Nadi camp", db))
+
+
+@router.post("/content/nadi-camps", response_model=NadiCampResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/nadi-camps", response_model=NadiCampResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_nadi_camp(payload: NadiCampCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(NadiCamp, payload, db, is_active=as_active_flag(payload.is_active))
     return as_nadi_camp(item)
 
 
-@router.put("/nadi-camps/{entity_id}", response_model=NadiCampResponse)
+@router.put("/content/nadi-camps/{entity_id}", response_model=NadiCampResponse, tags=["Admin Content"])
+@router.put("/nadi-camps/{entity_id}", response_model=NadiCampResponse, include_in_schema=False)
 def update_nadi_camp(entity_id: int, payload: NadiCampUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(NadiCamp, entity_id, "Nadi camp", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return as_nadi_camp(item)
 
 
-@router.delete("/nadi-camps/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/nadi-camps/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/nadi-camps/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_nadi_camp(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(NadiCamp, entity_id, "Nadi camp", db)
 
 
-@router.get("/relaxation-therapies", response_model=list[RelaxationTherapyResponse])
+@router.get("/content/relaxation-therapies", response_model=list[RelaxationTherapyResponse], tags=["Admin Content"])
+@router.get("/relaxation-therapies", response_model=list[RelaxationTherapyResponse], include_in_schema=False)
 def list_admin_relaxation_therapies(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(RelaxationTherapy, db)
     return [as_relax(item) for item in items]
 
 
-@router.post("/relaxation-therapies", response_model=RelaxationTherapyResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse, tags=["Admin Content"])
+@router.get("/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse, include_in_schema=False)
+def get_relaxation_therapy(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_relax(get_entity_or_404(RelaxationTherapy, entity_id, "Relaxation therapy", db))
+
+
+@router.post("/content/relaxation-therapies", response_model=RelaxationTherapyResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/relaxation-therapies", response_model=RelaxationTherapyResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_relaxation_therapy(payload: RelaxationTherapyCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(
         RelaxationTherapy,
@@ -225,7 +279,8 @@ def create_relaxation_therapy(payload: RelaxationTherapyCreate, _: AdminUser = D
     return as_relax(item)
 
 
-@router.put("/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse)
+@router.put("/content/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse, tags=["Admin Content"])
+@router.put("/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse, include_in_schema=False)
 def update_relaxation_therapy(
     entity_id: int,
     payload: RelaxationTherapyUpdate,
@@ -243,24 +298,34 @@ def update_relaxation_therapy(
     return as_relax(item)
 
 
-@router.delete("/relaxation-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/relaxation-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/relaxation-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_relaxation_therapy(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(RelaxationTherapy, entity_id, "Relaxation therapy", db)
 
 
-@router.get("/alternative-treatments", response_model=list[AlternativeTreatmentResponse])
+@router.get("/content/alternative-treatments", response_model=list[AlternativeTreatmentResponse], tags=["Admin Content"])
+@router.get("/alternative-treatments", response_model=list[AlternativeTreatmentResponse], include_in_schema=False)
 def list_admin_alternative_treatments(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(AlternativeTreatment, db)
     return [as_alt(item) for item in items]
 
 
-@router.post("/alternative-treatments", response_model=AlternativeTreatmentResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/alternative-treatments/{entity_id}", response_model=AlternativeTreatmentResponse, tags=["Admin Content"])
+@router.get("/alternative-treatments/{entity_id}", response_model=AlternativeTreatmentResponse, include_in_schema=False)
+def get_alternative_treatment(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_alt(get_entity_or_404(AlternativeTreatment, entity_id, "Alternative treatment", db))
+
+
+@router.post("/content/alternative-treatments", response_model=AlternativeTreatmentResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/alternative-treatments", response_model=AlternativeTreatmentResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_alternative_treatment(payload: AlternativeTreatmentCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(AlternativeTreatment, payload, db, is_active=as_active_flag(payload.is_active))
     return as_alt(item)
 
 
-@router.put("/alternative-treatments/{entity_id}", response_model=AlternativeTreatmentResponse)
+@router.put("/content/alternative-treatments/{entity_id}", response_model=AlternativeTreatmentResponse, tags=["Admin Content"])
+@router.put("/alternative-treatments/{entity_id}", response_model=AlternativeTreatmentResponse, include_in_schema=False)
 def update_alternative_treatment(
     entity_id: int,
     payload: AlternativeTreatmentUpdate,
@@ -272,18 +337,27 @@ def update_alternative_treatment(
     return as_alt(item)
 
 
-@router.delete("/alternative-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/alternative-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/alternative-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_alternative_treatment(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(AlternativeTreatment, entity_id, "Alternative treatment", db)
 
 
-@router.get("/panchakarma-core-therapies", response_model=list[PanchakarmaCoreTherapyResponse])
+@router.get("/content/panchakarma/core-therapies", response_model=list[PanchakarmaCoreTherapyResponse], tags=["Admin Content"])
+@router.get("/panchakarma-core-therapies", response_model=list[PanchakarmaCoreTherapyResponse], include_in_schema=False)
 def list_admin_panchakarma_core_therapies(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(PanchakarmaCoreTherapy, db)
     return [as_pk_core(item) for item in items]
 
 
-@router.post("/panchakarma-core-therapies", response_model=PanchakarmaCoreTherapyResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/panchakarma/core-therapies/{entity_id}", response_model=PanchakarmaCoreTherapyResponse, tags=["Admin Content"])
+@router.get("/panchakarma-core-therapies/{entity_id}", response_model=PanchakarmaCoreTherapyResponse, include_in_schema=False)
+def get_panchakarma_core_therapy(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_pk_core(get_entity_or_404(PanchakarmaCoreTherapy, entity_id, "Panchakarma core therapy", db))
+
+
+@router.post("/content/panchakarma/core-therapies", response_model=PanchakarmaCoreTherapyResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/panchakarma-core-therapies", response_model=PanchakarmaCoreTherapyResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_panchakarma_core_therapy(
     payload: PanchakarmaCoreTherapyCreate,
     _: AdminUser = Depends(get_current_admin),
@@ -299,7 +373,8 @@ def create_panchakarma_core_therapy(
     return as_pk_core(item)
 
 
-@router.put("/panchakarma-core-therapies/{entity_id}", response_model=PanchakarmaCoreTherapyResponse)
+@router.put("/content/panchakarma/core-therapies/{entity_id}", response_model=PanchakarmaCoreTherapyResponse, tags=["Admin Content"])
+@router.put("/panchakarma-core-therapies/{entity_id}", response_model=PanchakarmaCoreTherapyResponse, include_in_schema=False)
 def update_panchakarma_core_therapy(
     entity_id: int,
     payload: PanchakarmaCoreTherapyUpdate,
@@ -317,18 +392,27 @@ def update_panchakarma_core_therapy(
     return as_pk_core(item)
 
 
-@router.delete("/panchakarma-core-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/panchakarma/core-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/panchakarma-core-therapies/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_panchakarma_core_therapy(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(PanchakarmaCoreTherapy, entity_id, "Panchakarma core therapy", db)
 
 
-@router.get("/panchakarma-other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse])
+@router.get("/content/panchakarma/other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse], tags=["Admin Content"])
+@router.get("/panchakarma-other-treatments", response_model=list[PanchakarmaOtherTreatmentResponse], include_in_schema=False)
 def list_admin_panchakarma_other_treatments(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = list_entities(PanchakarmaOtherTreatment, db)
     return [as_pk_other(item) for item in items]
 
 
-@router.post("/panchakarma-other-treatments", response_model=PanchakarmaOtherTreatmentResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/content/panchakarma/other-treatments/{entity_id}", response_model=PanchakarmaOtherTreatmentResponse, tags=["Admin Content"])
+@router.get("/panchakarma-other-treatments/{entity_id}", response_model=PanchakarmaOtherTreatmentResponse, include_in_schema=False)
+def get_panchakarma_other_treatment(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_pk_other(get_entity_or_404(PanchakarmaOtherTreatment, entity_id, "Panchakarma other treatment", db))
+
+
+@router.post("/content/panchakarma/other-treatments", response_model=PanchakarmaOtherTreatmentResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/panchakarma-other-treatments", response_model=PanchakarmaOtherTreatmentResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_panchakarma_other_treatment(
     payload: PanchakarmaOtherTreatmentCreate,
     _: AdminUser = Depends(get_current_admin),
@@ -338,7 +422,8 @@ def create_panchakarma_other_treatment(
     return as_pk_other(item)
 
 
-@router.put("/panchakarma-other-treatments/{entity_id}", response_model=PanchakarmaOtherTreatmentResponse)
+@router.put("/content/panchakarma/other-treatments/{entity_id}", response_model=PanchakarmaOtherTreatmentResponse, tags=["Admin Content"])
+@router.put("/panchakarma-other-treatments/{entity_id}", response_model=PanchakarmaOtherTreatmentResponse, include_in_schema=False)
 def update_panchakarma_other_treatment(
     entity_id: int,
     payload: PanchakarmaOtherTreatmentUpdate,
@@ -350,12 +435,14 @@ def update_panchakarma_other_treatment(
     return as_pk_other(item)
 
 
-@router.delete("/panchakarma-other-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/content/panchakarma/other-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/panchakarma-other-treatments/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_panchakarma_other_treatment(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(PanchakarmaOtherTreatment, entity_id, "Panchakarma other treatment", db)
 
 
-@router.get("/booking-slots", response_model=list[BookingSlotResponse])
+@router.get("/booking/slots", response_model=list[BookingSlotResponse], tags=["Admin Booking"])
+@router.get("/booking-slots", response_model=list[BookingSlotResponse], include_in_schema=False)
 def list_admin_booking_slots(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = (
         db.query(BookingSlot)
@@ -365,25 +452,35 @@ def list_admin_booking_slots(_: AdminUser = Depends(get_current_admin), db: Sess
     return [as_booking_slot(item) for item in items]
 
 
-@router.post("/booking-slots", response_model=BookingSlotResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/booking/slots/{entity_id}", response_model=BookingSlotResponse, tags=["Admin Booking"])
+@router.get("/booking-slots/{entity_id}", response_model=BookingSlotResponse, include_in_schema=False)
+def get_booking_slot(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_booking_slot(get_entity_or_404(BookingSlot, entity_id, "Booking slot", db))
+
+
+@router.post("/booking/slots", response_model=BookingSlotResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Booking"])
+@router.post("/booking-slots", response_model=BookingSlotResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_booking_slot(payload: BookingSlotCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(BookingSlot, payload, db, is_active=as_active_flag(payload.is_active))
     return as_booking_slot(item)
 
 
-@router.put("/booking-slots/{entity_id}", response_model=BookingSlotResponse)
+@router.put("/booking/slots/{entity_id}", response_model=BookingSlotResponse, tags=["Admin Booking"])
+@router.put("/booking-slots/{entity_id}", response_model=BookingSlotResponse, include_in_schema=False)
 def update_booking_slot(entity_id: int, payload: BookingSlotUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(BookingSlot, entity_id, "Booking slot", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return as_booking_slot(item)
 
 
-@router.delete("/booking-slots/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/booking/slots/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])
+@router.delete("/booking-slots/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_booking_slot(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(BookingSlot, entity_id, "Booking slot", db)
 
 
-@router.get("/bookings", response_model=list[TherapyBookingResponse])
+@router.get("/booking/appointments", response_model=list[TherapyBookingResponse], tags=["Admin Booking"])
+@router.get("/bookings", response_model=list[TherapyBookingResponse], include_in_schema=False)
 def list_admin_bookings(
     _: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
@@ -395,7 +492,14 @@ def list_admin_bookings(
     return [as_therapy_booking(item) for item in query.all()]
 
 
-@router.patch("/bookings/{booking_id}", response_model=TherapyBookingResponse)
+@router.get("/booking/appointments/{booking_id}", response_model=TherapyBookingResponse, tags=["Admin Booking"])
+@router.get("/bookings/{booking_id}", response_model=TherapyBookingResponse, include_in_schema=False)
+def get_booking(booking_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return as_therapy_booking(get_entity_or_404(TherapyBooking, booking_id, "Booking", db))
+
+
+@router.patch("/booking/appointments/{booking_id}", response_model=TherapyBookingResponse, tags=["Admin Booking"])
+@router.patch("/bookings/{booking_id}", response_model=TherapyBookingResponse, include_in_schema=False)
 def update_booking_status(
     booking_id: int,
     payload: TherapyBookingStatusUpdate,
@@ -416,13 +520,27 @@ def update_booking_status(
     return serialize_booking(item)
 
 
-@router.get("/therapists", response_model=list[TherapistResponse])
+@router.delete("/booking/appointments/{booking_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])
+@router.delete("/bookings/{booking_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+def delete_booking(booking_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return delete_entity(TherapyBooking, booking_id, "Booking", db)
+
+
+@router.get("/booking/therapists", response_model=list[TherapistResponse], tags=["Admin Booking"])
+@router.get("/therapists", response_model=list[TherapistResponse], include_in_schema=False)
 def list_admin_therapists(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = db.query(Therapist).order_by(Therapist.full_name.asc(), Therapist.id.asc()).all()
     return [serialize_therapist(item) for item in items]
 
 
-@router.post("/therapists", response_model=TherapistResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/booking/therapists/{entity_id}", response_model=TherapistResponse, tags=["Admin Booking"])
+@router.get("/therapists/{entity_id}", response_model=TherapistResponse, include_in_schema=False)
+def get_therapist(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return serialize_therapist(get_entity_or_404(Therapist, entity_id, "Therapist", db))
+
+
+@router.post("/booking/therapists", response_model=TherapistResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Booking"])
+@router.post("/therapists", response_model=TherapistResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_therapist(payload: TherapistCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(
         Therapist,
@@ -434,7 +552,8 @@ def create_therapist(payload: TherapistCreate, _: AdminUser = Depends(get_curren
     return serialize_therapist(item)
 
 
-@router.put("/therapists/{entity_id}", response_model=TherapistResponse)
+@router.put("/booking/therapists/{entity_id}", response_model=TherapistResponse, tags=["Admin Booking"])
+@router.put("/therapists/{entity_id}", response_model=TherapistResponse, include_in_schema=False)
 def update_therapist(entity_id: int, payload: TherapistUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(Therapist, entity_id, "Therapist", db)
     item = update_entity(
@@ -447,12 +566,14 @@ def update_therapist(entity_id: int, payload: TherapistUpdate, _: AdminUser = De
     return serialize_therapist(item)
 
 
-@router.delete("/therapists/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/booking/therapists/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])
+@router.delete("/therapists/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_therapist(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(Therapist, entity_id, "Therapist", db)
 
 
-@router.get("/therapist-availabilities", response_model=list[TherapistAvailabilityResponse])
+@router.get("/booking/therapist-availabilities", response_model=list[TherapistAvailabilityResponse], tags=["Admin Booking"])
+@router.get("/therapist-availabilities", response_model=list[TherapistAvailabilityResponse], include_in_schema=False)
 def list_admin_therapist_availabilities(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = (
         db.query(TherapistAvailability)
@@ -462,25 +583,35 @@ def list_admin_therapist_availabilities(_: AdminUser = Depends(get_current_admin
     return [serialize_availability(item) for item in items]
 
 
-@router.post("/therapist-availabilities", response_model=TherapistAvailabilityResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/booking/therapist-availabilities/{entity_id}", response_model=TherapistAvailabilityResponse, tags=["Admin Booking"])
+@router.get("/therapist-availabilities/{entity_id}", response_model=TherapistAvailabilityResponse, include_in_schema=False)
+def get_therapist_availability(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return serialize_availability(get_entity_or_404(TherapistAvailability, entity_id, "Therapist availability", db))
+
+
+@router.post("/booking/therapist-availabilities", response_model=TherapistAvailabilityResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Booking"])
+@router.post("/therapist-availabilities", response_model=TherapistAvailabilityResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_therapist_availability(payload: TherapistAvailabilityCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(TherapistAvailability, payload, db, is_active=as_active_flag(payload.is_active))
     return serialize_availability(item)
 
 
-@router.put("/therapist-availabilities/{entity_id}", response_model=TherapistAvailabilityResponse)
+@router.put("/booking/therapist-availabilities/{entity_id}", response_model=TherapistAvailabilityResponse, tags=["Admin Booking"])
+@router.put("/therapist-availabilities/{entity_id}", response_model=TherapistAvailabilityResponse, include_in_schema=False)
 def update_therapist_availability(entity_id: int, payload: TherapistAvailabilityUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(TherapistAvailability, entity_id, "Therapist availability", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return serialize_availability(item)
 
 
-@router.delete("/therapist-availabilities/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/booking/therapist-availabilities/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])
+@router.delete("/therapist-availabilities/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_therapist_availability(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(TherapistAvailability, entity_id, "Therapist availability", db)
 
 
-@router.get("/therapist-blackouts", response_model=list[TherapistBlackoutResponse])
+@router.get("/booking/therapist-blackouts", response_model=list[TherapistBlackoutResponse], tags=["Admin Booking"])
+@router.get("/therapist-blackouts", response_model=list[TherapistBlackoutResponse], include_in_schema=False)
 def list_admin_therapist_blackouts(_: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     items = (
         db.query(TherapistBlackout)
@@ -490,19 +621,28 @@ def list_admin_therapist_blackouts(_: AdminUser = Depends(get_current_admin), db
     return [serialize_blackout(item) for item in items]
 
 
-@router.post("/therapist-blackouts", response_model=TherapistBlackoutResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/booking/therapist-blackouts/{entity_id}", response_model=TherapistBlackoutResponse, tags=["Admin Booking"])
+@router.get("/therapist-blackouts/{entity_id}", response_model=TherapistBlackoutResponse, include_in_schema=False)
+def get_therapist_blackout(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return serialize_blackout(get_entity_or_404(TherapistBlackout, entity_id, "Therapist blackout", db))
+
+
+@router.post("/booking/therapist-blackouts", response_model=TherapistBlackoutResponse, status_code=status.HTTP_201_CREATED, tags=["Admin Booking"])
+@router.post("/therapist-blackouts", response_model=TherapistBlackoutResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_therapist_blackout(payload: TherapistBlackoutCreate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = create_entity(TherapistBlackout, payload, db, is_active=as_active_flag(payload.is_active))
     return serialize_blackout(item)
 
 
-@router.put("/therapist-blackouts/{entity_id}", response_model=TherapistBlackoutResponse)
+@router.put("/booking/therapist-blackouts/{entity_id}", response_model=TherapistBlackoutResponse, tags=["Admin Booking"])
+@router.put("/therapist-blackouts/{entity_id}", response_model=TherapistBlackoutResponse, include_in_schema=False)
 def update_therapist_blackout(entity_id: int, payload: TherapistBlackoutUpdate, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     item = get_entity_or_404(TherapistBlackout, entity_id, "Therapist blackout", db)
     item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
     return serialize_blackout(item)
 
 
-@router.delete("/therapist-blackouts/{entity_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/booking/therapist-blackouts/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])
+@router.delete("/therapist-blackouts/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_therapist_blackout(entity_id: int, _: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     return delete_entity(TherapistBlackout, entity_id, "Therapist blackout", db)

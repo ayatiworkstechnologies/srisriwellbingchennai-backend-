@@ -1,4 +1,5 @@
 from fastapi import HTTPException, Response, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 
@@ -21,6 +22,23 @@ def list_entities(model, db: Session):
 
 def list_active_entities(model, db: Session):
     return db.query(model).filter(model.is_active == "true").order_by(model.sort_order.asc(), model.id.asc()).all()
+
+
+def list_active_entities_by_category(model, category: str | None, db: Session):
+    query = db.query(model).filter(model.is_active == "true")
+    if category:
+        query = query.filter(func.lower(model.category) == category.strip().lower())
+    return query.order_by(model.sort_order.asc(), model.id.asc()).all()
+
+
+def list_active_categories(model, db: Session):
+    return (
+        db.query(model.category, func.count(model.id))
+        .filter(model.is_active == "true")
+        .group_by(model.category)
+        .order_by(func.lower(model.category).asc())
+        .all()
+    )
 
 
 def create_entity(model, payload, db: Session, **extra_fields):
