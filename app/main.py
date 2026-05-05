@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from .api.routes.admin import router as admin_router
 from .api.routes.health import router as health_router
@@ -11,13 +13,24 @@ from .database import Base, engine
 from .services.content import seed_admin_user, seed_default_content
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    seed_admin_user()
-    seed_default_content()
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+
+        Base.metadata.create_all(bind=engine)
+        seed_admin_user()
+        seed_default_content()
+        logger.info("Application startup completed successfully.")
+    except Exception:
+        logger.exception(
+            "Application startup failed. Check DATABASE_URL and other environment variables."
+        )
+        raise
     yield
 
 
