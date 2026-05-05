@@ -1,5 +1,7 @@
 from functools import lru_cache
+import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +23,18 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    def model_post_init(self, __context) -> None:
+        render_enabled = os.getenv("RENDER", "").lower() == "true"
+        parsed = urlparse(self.database_url)
+        host = (parsed.hostname or "").lower()
+
+        if render_enabled and host in {"localhost", "127.0.0.1"}:
+            raise ValueError(
+                "Invalid DATABASE_URL for Render: localhost points to the web service itself. "
+                "Set DATABASE_URL to your MySQL service host, for example "
+                "'mysql+pymysql://USER:PASSWORD@mysql:3306/DBNAME' or your external MySQL host."
+            )
 
 
 @lru_cache
