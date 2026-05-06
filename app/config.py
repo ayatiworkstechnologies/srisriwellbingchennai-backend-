@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     def frontend_origins(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.frontend_origin.split(",") if origin.strip()]
 
+    @computed_field
+    @property
+    def frontend_origin_regex(self) -> str:
+        return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+
 
 @lru_cache
 def get_settings() -> Settings:

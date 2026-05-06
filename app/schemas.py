@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 InquiryStatus = Literal["new", "contacted", "closed"]
@@ -14,6 +14,46 @@ class InquiryCreate(BaseModel):
     email: EmailStr
     topic: str = Field(min_length=2, max_length=100)
     message: str = Field(min_length=10, max_length=5000)
+    source: str | None = Field(default=None, min_length=2, max_length=100)
+    service_interest: str | None = Field(default=None, min_length=2, max_length=255)
+    page_path: str | None = Field(default=None, min_length=1, max_length=255)
+
+    @field_validator("source", "service_interest", "page_path", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+
+class LeadInquiryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=255)
+    phone: str = Field(min_length=6, max_length=50)
+    email: EmailStr
+    topic: str | None = Field(default=None, min_length=2, max_length=100)
+    service_interest: str | None = Field(default=None, min_length=2, max_length=255)
+    message: str | None = Field(default=None, min_length=2, max_length=5000)
+    source: str | None = Field(default=None, min_length=2, max_length=100)
+    page_path: str | None = Field(default=None, min_length=1, max_length=255)
+
+    @field_validator("topic", "service_interest", "message", "source", "page_path", mode="before")
+    @classmethod
+    def normalize_nullable_text(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @model_validator(mode="after")
+    def require_some_context(self):
+        if self.topic or self.service_interest or self.message:
+            return self
+        raise ValueError("At least one of topic, service_interest, or message is required")
 
 
 class InquiryResponse(BaseModel):
@@ -23,6 +63,9 @@ class InquiryResponse(BaseModel):
     email: EmailStr
     topic: str
     message: str
+    source: str | None = None
+    service_interest: str | None = None
+    page_path: str | None = None
     status: InquiryStatus
     created_at: datetime
 
@@ -43,11 +86,22 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
 class DashboardResponse(BaseModel):
     total_inquiries: int
     new_inquiries: int
     contacted_inquiries: int
     closed_inquiries: int
+
+
+class AdminBootstrapResponse(BaseModel):
+    services: list["ServiceResponse"]
+    relaxation_therapies: list["RelaxationTherapyResponse"]
+    therapists: list["TherapistResponse"]
+    bookings: list["TherapyBookingResponse"]
 
 
 class ContentCategoryResponse(BaseModel):
@@ -345,7 +399,7 @@ class TherapyBookingCreate(BaseModel):
     customer_name: str = Field(min_length=2, max_length=255)
     phone: str = Field(min_length=6, max_length=50)
     email: EmailStr
-    therapist_id: int = Field(ge=1)
+    therapist_id: int = Field(default=0, ge=0)
     booking_date: date
     slot_id: int = Field(default=0, ge=0)
     start_time: time

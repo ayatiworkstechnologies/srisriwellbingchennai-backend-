@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..content_helpers import create_entity, list_active_categories, list_active_entities, list_active_entities_by_category
 from ...database import get_db
+from ...legacy import ACTIVE_FLAG_TRUE
 from ...models import (
     AlternativeTreatment,
     BookingSlot,
@@ -26,6 +27,7 @@ from ...schemas import (
     ContentCategoryResponse,
     InquiryCreate,
     InquiryResponse,
+    LeadInquiryCreate,
     NadiCampResponse,
     PanchakarmaCoreTherapyResponse,
     PanchakarmaOtherTreatmentResponse,
@@ -63,6 +65,27 @@ router = APIRouter(prefix="/api/v1")
 @router.post("/inquiries", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_inquiry(payload: InquiryCreate, db: Session = Depends(get_db)):
     return create_entity(Inquiry, payload, db)
+
+
+@router.post("/contact/leads", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED, tags=["Public Contact"])
+def create_contact_lead(payload: LeadInquiryCreate, db: Session = Depends(get_db)):
+    topic = payload.topic or payload.service_interest or "General enquiry"
+    message = payload.message or (
+        f"Lead captured for service interest: {payload.service_interest}."
+        if payload.service_interest
+        else "Lead captured from website."
+    )
+    inquiry = InquiryCreate(
+        name=payload.name,
+        phone=payload.phone,
+        email=payload.email,
+        topic=topic,
+        message=message,
+        source=payload.source,
+        service_interest=payload.service_interest,
+        page_path=payload.page_path,
+    )
+    return create_entity(Inquiry, inquiry, db)
 
 
 @router.get("/content/services", response_model=list[ServiceResponse], tags=["Public Content"])
@@ -141,7 +164,7 @@ def list_public_booking_slots(
 ):
     query = (
         db.query(BookingSlot)
-        .filter(BookingSlot.is_active == "true", BookingSlot.therapy_name == therapy_name)
+        .filter(BookingSlot.is_active == ACTIVE_FLAG_TRUE, BookingSlot.therapy_name == therapy_name)
         .order_by(BookingSlot.booking_date.asc(), BookingSlot.start_time.asc(), BookingSlot.id.asc())
     )
     if booking_date:
@@ -164,9 +187,15 @@ def list_public_therapy_availability(
 @router.post("/booking/appointments", response_model=TherapyBookingResponse, status_code=status.HTTP_201_CREATED, tags=["Public Booking"])
 @router.post("/public/bookings", response_model=TherapyBookingResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(get_db)):
-    therapist = db.query(Therapist).filter(Therapist.id == payload.therapist_id, Therapist.is_active == "true").first()
-    if not therapist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Selected therapist not found")
+    therapist = None
+    therapist_name = "Sri Sri Wellbeing Team"
+    therapist_id = None
+    if payload.therapist_id:
+        therapist = db.query(Therapist).filter(Therapist.id == payload.therapist_id, Therapist.is_active == ACTIVE_FLAG_TRUE).first()
+        if not therapist:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Selected therapist not found")
+        therapist_name = therapist.full_name
+        therapist_id = therapist.id
 
     matching_windows = [
         slot
@@ -183,8 +212,8 @@ def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(g
         customer_name=payload.customer_name,
         phone=payload.phone,
         email=payload.email,
-        therapist_id=therapist.id,
-        therapist_name=therapist.full_name,
+        therapist_id=therapist_id,
+        therapist_name=therapist_name,
         booking_date=payload.booking_date,
         slot_id=payload.slot_id,
         start_time=payload.start_time,

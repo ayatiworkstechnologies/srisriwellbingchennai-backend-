@@ -5,7 +5,17 @@ from .config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+# Keep the pool intentionally small because the current MySQL user has a very low
+# connection limit. This prevents bursts from the frontend admin from exhausting
+# the database before connections can be reused.
+engine = create_engine(
+    settings.database_url,
+    pool_pre_ping=True,
+    pool_size=2,
+    max_overflow=0,
+    pool_recycle=1800,
+    pool_timeout=30,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

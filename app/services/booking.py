@@ -4,6 +4,7 @@ from secrets import token_hex
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..legacy import ACTIVE_FLAG_TRUE, is_active_flag
 from ..models import BookingSlot, Therapist, TherapistAvailability, TherapistBlackout, TherapyBooking
 from ..schemas import (
     BookingCancelResponse,
@@ -19,6 +20,16 @@ from ..schemas import (
 
 ACTIVE_BOOKING_STATUSES = ("pending", "confirmed", "rescheduled")
 WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+DEFAULT_DAILY_SLOT_STARTS = (
+    time(9, 0),
+    time(11, 0),
+    time(13, 0),
+    time(15, 0),
+    time(17, 0),
+)
+DEFAULT_SLOT_DURATION_MINUTES = 45
+UNASSIGNED_THERAPIST_ID = 0
+UNASSIGNED_THERAPIST_NAME = "Sri Sri Wellbeing Team"
 
 
 def build_reference_code() -> str:
@@ -35,6 +46,10 @@ def split_lines(value: str) -> list[str]:
 
 def join_lines(items: list[str]) -> str:
     return "\n".join(item.strip() for item in items if item.strip())
+
+
+def normalize_text(value: str) -> str:
+    return " ".join(value.lower().replace("-", " ").split())
 
 
 def combine_time(value: date, clock: time) -> datetime:
@@ -68,7 +83,7 @@ def is_therapist_blocked(therapist_id: int, booking_date: date, start_time: time
         .filter(
             TherapistBlackout.therapist_id == therapist_id,
             TherapistBlackout.blackout_date == booking_date,
-            TherapistBlackout.is_active == "true",
+            TherapistBlackout.is_active == ACTIVE_FLAG_TRUE,
         )
         .all()
     )
@@ -85,6 +100,21 @@ def has_capacity(availability: TherapistAvailability, booking_date: date, start_
     return booked < availability.max_bookings_per_slot
 
 
+def therapist_supports_therapy(therapist: Therapist, therapy_name: str) -> bool:
+    normalized_therapy = normalize_text(therapy_name)
+    specialties = [normalize_text(item) for item in split_lines(therapist.specialties)]
+
+    if not specialties:
+        return True
+
+    return any(
+        specialty == normalized_therapy
+        or normalized_therapy in specialty
+        or specialty in normalized_therapy
+        for specialty in specialties
+    )
+
+
 def serialize_therapist(item: Therapist) -> TherapistResponse:
     return TherapistResponse(
         id=item.id,
@@ -93,7 +123,7 @@ def serialize_therapist(item: Therapist) -> TherapistResponse:
         phone=item.phone,
         specialties=split_lines(item.specialties),
         bio=item.bio,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -108,7 +138,7 @@ def serialize_availability(item: TherapistAvailability) -> TherapistAvailability
         end_time=item.end_time,
         slot_interval_minutes=item.slot_interval_minutes,
         max_bookings_per_slot=item.max_bookings_per_slot,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -121,7 +151,7 @@ def serialize_blackout(item: TherapistBlackout) -> TherapistBlackoutResponse:
         start_time=item.start_time,
         end_time=item.end_time,
         reason=item.reason,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -173,7 +203,7 @@ def as_booking_slot(item: BookingSlot) -> BookingSlotResponse:
         start_time=item.start_time,
         end_time=item.end_time,
         capacity=item.capacity,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -187,7 +217,7 @@ def as_public_booking_slot(item: BookingSlot, db: Session) -> PublicBookingSlotR
         end_time=item.end_time,
         capacity=item.capacity,
         remaining_capacity=get_remaining_capacity(item, db),
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -202,10 +232,10 @@ def build_public_availability(therapy_name: str, booking_date: date, db: Session
         db.query(TherapistAvailability, Therapist)
         .join(Therapist, Therapist.id == TherapistAvailability.therapist_id)
         .filter(
-            TherapistAvailability.is_active == "true",
+            TherapistAvailability.is_active == ACTIVE_FLAG_TRUE,
             TherapistAvailability.therapy_name == therapy_name,
             TherapistAvailability.day_of_week == weekday,
-            Therapist.is_active == "true",
+            Therapist.is_active == ACTIVE_FLAG_TRUE,
         )
         .order_by(Therapist.full_name.asc(), TherapistAvailability.start_time.asc())
         .all()
@@ -231,4 +261,52 @@ def build_public_availability(therapy_name: str, booking_date: date, db: Session
                 )
             start = end
 
-    return slots
+    if slots:
+        return slots
+
+    # Fallback: when no weekly therapist availability is configured yet,
+    # expose five simple daytime slots so booking can still operate.
+    therapists = (
+        db.query(Therapist)
+        .filter(Therapist.is_active == ACTIVE_FLAG_TRUE)
+        .order_by(Therapist.full_name.asc(), Therapist.id.asc())
+        .all()
+    )
+    matching_therapists = [item for item in therapists if therapist_supports_therapy(item, therapy_name)]
+    fallback_therapist = (matching_therapists or therapists)[0] if therapists else None
+
+    if not fallback_therapist:
+        return [
+            PublicTherapyAvailabilityResponse(
+                therapist_id=UNASSIGNED_THERAPIST_ID,
+                therapist_name=UNASSIGNED_THERAPIST_NAME,
+                therapy_name=therapy_name,
+                booking_date=booking_date,
+                start_time=start,
+                end_time=add_minutes(start, DEFAULT_SLOT_DURATION_MINUTES),
+                remaining_capacity=5,
+            )
+            for start in DEFAULT_DAILY_SLOT_STARTS
+        ]
+
+    fallback_slots: list[PublicTherapyAvailabilityResponse] = []
+    for start in DEFAULT_DAILY_SLOT_STARTS:
+        end = add_minutes(start, DEFAULT_SLOT_DURATION_MINUTES)
+        if is_therapist_blocked(fallback_therapist.id, booking_date, start, end, db):
+            continue
+        remaining = 1 - count_therapist_bookings(fallback_therapist.id, booking_date, start, end, db)
+        if remaining <= 0:
+            continue
+        fallback_slots.append(
+            PublicTherapyAvailabilityResponse(
+                therapist_id=fallback_therapist.id,
+                therapist_name=fallback_therapist.full_name,
+                therapy_name=therapy_name,
+                booking_date=booking_date,
+                start_time=start,
+                end_time=end,
+                remaining_capacity=remaining,
+            )
+        )
+
+    return fallback_slots

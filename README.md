@@ -104,6 +104,7 @@ This happens in the FastAPI lifespan hook in [app/main.py](/d:/2026/srisri/backe
 ### Public APIs
 
 - `POST /api/v1/inquiries`
+- `POST /api/v1/contact/leads`
 - `GET /api/v1/public/services`
 - `GET /api/v1/public/testimonials`
 - `GET /api/v1/public/nadi-camps`
@@ -151,3 +152,4 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 - CORS is restricted to the comma-separated origins configured in `FRONTEND_ORIGIN`.
 - The backend relies on Alembic migrations for schema changes and no longer creates tables during app startup.
 - `.env.example` is intended to stay committed, while `.env` should remain local only.
+- Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.

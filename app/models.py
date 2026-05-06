@@ -25,6 +25,9 @@ class Inquiry(Base):
     email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     topic: Mapped[str] = mapped_column(String(100), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    source: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    service_interest: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    page_path: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="new", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 

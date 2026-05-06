@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..database import SessionLocal
+from ..legacy import is_active_flag
 from ..models import (
     AdminUser,
     AlternativeTreatment,
@@ -124,7 +125,7 @@ def as_service(item: Service) -> ServiceResponse:
         description=item.description,
         image=item.image,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -135,7 +136,7 @@ def as_testimonial(item: Testimonial) -> TestimonialResponse:
         name=item.name,
         review=item.review,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -149,7 +150,7 @@ def as_nadi_camp(item: NadiCamp) -> NadiCampResponse:
         contact=item.contact,
         address=item.address,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -164,7 +165,7 @@ def as_relax(item: RelaxationTherapy) -> RelaxationTherapyResponse:
         benefits=split_lines(item.benefits),
         image=item.image,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -178,7 +179,7 @@ def as_alt(item: AlternativeTreatment) -> AlternativeTreatmentResponse:
         short_desc=item.short_desc,
         image=item.image,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -196,7 +197,7 @@ def as_pk_core(item: PanchakarmaCoreTherapy) -> PanchakarmaCoreTherapyResponse:
         image=item.image,
         benefits=split_lines(item.benefits),
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )
 
@@ -208,6 +209,6 @@ def as_pk_other(item: PanchakarmaOtherTreatment) -> PanchakarmaOtherTreatmentRes
         category=item.category,
         desc=item.desc,
         sort_order=item.sort_order,
-        is_active=item.is_active == "true",
+        is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )

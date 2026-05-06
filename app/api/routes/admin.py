@@ -28,6 +28,7 @@ from ...models import (
     TherapyBooking,
 )
 from ...schemas import (
+    AdminBootstrapResponse,
     AdminLoginRequest,
     AlternativeTreatmentCreate,
     AlternativeTreatmentResponse,
@@ -114,16 +115,44 @@ def admin_dashboard(_: AdminUser = Depends(get_current_admin), db: Session = Dep
     )
 
 
+@router.get("/bootstrap", response_model=AdminBootstrapResponse, tags=["Admin Dashboard"])
+def admin_bootstrap(
+    _: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+    booking_status: str | None = Query(default=None, alias="booking_status"),
+):
+    booking_query = db.query(TherapyBooking).order_by(
+        TherapyBooking.booking_date.desc(),
+        TherapyBooking.start_time.asc(),
+        TherapyBooking.id.desc(),
+    )
+    if booking_status:
+        booking_query = booking_query.filter(TherapyBooking.status == booking_status)
+
+    return AdminBootstrapResponse(
+        services=[as_service(item) for item in list_entities(Service, db)],
+        relaxation_therapies=[as_relax(item) for item in list_entities(RelaxationTherapy, db)],
+        therapists=[
+            serialize_therapist(item)
+            for item in db.query(Therapist).order_by(Therapist.full_name.asc(), Therapist.id.asc()).all()
+        ],
+        bookings=[as_therapy_booking(item) for item in booking_query.all()],
+    )
+
+
 @router.get("/crm/inquiries", response_model=list[InquiryResponse], tags=["Admin CRM"])
 @router.get("/inquiries", response_model=list[InquiryResponse], include_in_schema=False)
 def list_inquiries(
     _: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
     status_filter: str | None = Query(default=None, alias="status"),
+    source_filter: str | None = Query(default=None, alias="source"),
 ):
     query = db.query(Inquiry).order_by(Inquiry.created_at.desc())
     if status_filter:
         query = query.filter(Inquiry.status == status_filter)
+    if source_filter:
+        query = query.filter(func.lower(Inquiry.source) == source_filter.strip().lower())
     return query.all()
 
 
