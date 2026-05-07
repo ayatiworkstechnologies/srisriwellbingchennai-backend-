@@ -102,7 +102,7 @@ from ...services.content import (
     join_lines,
 )
 from ..deps import get_current_admin, get_current_super_admin
-from ...legacy import ACTIVE_FLAG_TRUE, as_active_flag
+from ...legacy import ACTIVE_FLAG_TRUE
 from ...security import get_password_hash
 
 router = APIRouter(prefix="/api/v1/admin")
