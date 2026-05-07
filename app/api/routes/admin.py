@@ -34,6 +34,8 @@ from ...schemas import (
     AlternativeTreatmentResponse,
     AlternativeTreatmentUpdate,
     BookingSlotCreate,
+    BookingClientEmailRequest,
+    BookingClientEmailResponse,
     BookingSlotResponse,
     BookingSlotUpdate,
     DashboardResponse,
@@ -78,6 +80,11 @@ from ...services.booking import (
     serialize_blackout,
     serialize_booking,
     serialize_therapist,
+)
+from ...services.mail import (
+    build_booking_status_email,
+    build_custom_booking_email,
+    send_email,
 )
 from ...security import create_access_token, verify_password
 from ...services.content import (
@@ -537,16 +544,60 @@ def update_booking_status(
 ):
     item = get_entity_or_404(TherapyBooking, booking_id, "Booking", db)
     updates = payload.model_dump(exclude_none=True)
-    therapist_name = item.therapist_name
-    if payload.therapist_id:
+    send_status_email = updates.pop("send_email", False)
+    email_message = updates.pop("email_message", None)
+    if "therapist_id" in payload.model_fields_set and payload.therapist_id is None:
+        updates["therapist_id"] = None
+        updates["therapist_name"] = None
+    elif payload.therapist_id:
         therapist = get_entity_or_404(Therapist, payload.therapist_id, "Therapist", db)
-        therapist_name = therapist.full_name
-        updates["therapist_name"] = therapist_name
+        updates["therapist_name"] = therapist.full_name
     for field_name, field_value in updates.items():
         setattr(item, field_name, field_value)
     db.commit()
     db.refresh(item)
+
+    if send_status_email:
+        email_payload = build_booking_status_email(item, email_message)
+        send_email(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
+
     return serialize_booking(item)
+
+
+@router.post(
+    "/booking/appointments/{booking_id}/send-email",
+    response_model=BookingClientEmailResponse,
+    tags=["Admin Booking"],
+)
+@router.post(
+    "/bookings/{booking_id}/send-email",
+    response_model=BookingClientEmailResponse,
+    include_in_schema=False,
+)
+def send_booking_email(
+    booking_id: int,
+    payload: BookingClientEmailRequest,
+    _: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    item = get_entity_or_404(TherapyBooking, booking_id, "Booking", db)
+    email_payload = build_custom_booking_email(item, payload.subject, payload.message)
+    send_email(
+        to_email=item.email,
+        subject=email_payload["subject"],
+        html_body=email_payload["html"],
+        text_body=email_payload["text"],
+    )
+    return BookingClientEmailResponse(
+        detail="Email sent successfully",
+        recipient=item.email,
+        subject=email_payload["subject"],
+    )
 
 
 @router.delete("/booking/appointments/{booking_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Booking"])

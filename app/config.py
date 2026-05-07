@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     frontend_origin_regex: str = (
         r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$"
     )
+    mail_enabled: bool = False
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "Sri Sri Wellbeing Chennai"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

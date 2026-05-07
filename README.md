@@ -60,6 +60,14 @@ ADMIN_PASSWORD=ChangeMe123!
 PROJECT_NAME=Sri Sri Wellbeing Chennai API
 FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com,https://www.srisriwellbeingchennai.com
 FRONTEND_ORIGIN_REGEX=^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$
+MAIL_ENABLED=false
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_USE_TLS=true
+SMTP_FROM_EMAIL=
+SMTP_FROM_NAME=Sri Sri Wellbeing Chennai
 ```
 
 ## Local Setup
@@ -154,3 +162,4 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 - The backend relies on Alembic migrations for schema changes and no longer creates tables during app startup.
 - `.env.example` is intended to stay committed, while `.env` should remain local only.
 - Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.
+- Booking emails can be sent from admin, and public booking create/cancel flows can also send client emails when SMTP is configured and `MAIL_ENABLED=true`.

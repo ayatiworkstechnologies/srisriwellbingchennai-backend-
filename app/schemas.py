@@ -437,6 +437,19 @@ class TherapyBookingStatusUpdate(BaseModel):
     end_time: time | None = None
     cancellation_reason: str | None = Field(default=None, max_length=2000)
     notes: str | None = Field(default=None, max_length=2000)
+    send_email: bool = False
+    email_message: str | None = Field(default=None, max_length=5000)
+
+
+class BookingClientEmailRequest(BaseModel):
+    subject: str = Field(min_length=3, max_length=255)
+    message: str = Field(min_length=5, max_length=5000)
+
+
+class BookingClientEmailResponse(BaseModel):
+    detail: str
+    recipient: EmailStr
+    subject: str
 
 
 class BookingCancelRequest(BaseModel):

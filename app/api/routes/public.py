@@ -48,6 +48,11 @@ from ...services.booking import (
     serialize_booking,
     serialize_cancel_response,
 )
+from ...services.mail import (
+    build_booking_status_email,
+    build_custom_booking_email,
+    send_email,
+)
 from ...services.content import (
     as_alt,
     as_nadi_camp,
@@ -224,6 +229,25 @@ def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(g
     db.add(item)
     db.commit()
     db.refresh(item)
+
+    email_payload = build_custom_booking_email(
+        item,
+        subject=f"Booking received - {item.reference_code}",
+        message=(
+            "We have received your booking request. "
+            "Our team will review it and contact you shortly with confirmation details."
+        ),
+    )
+    try:
+        send_email(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
+    except HTTPException:
+        pass
+
     return serialize_booking(item)
 
 
@@ -246,4 +270,19 @@ def cancel_public_booking(payload: BookingCancelRequest, db: Session = Depends(g
     item.cancellation_reason = payload.reason
     db.commit()
     db.refresh(item)
+
+    email_payload = build_booking_status_email(
+        item,
+        "Your booking has been cancelled. If you would like to reschedule, please contact our team.",
+    )
+    try:
+        send_email(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
+    except HTTPException:
+        pass
+
     return serialize_cancel_response(item)
