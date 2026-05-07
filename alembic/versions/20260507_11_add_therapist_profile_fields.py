@@ -31,22 +31,37 @@ def upgrade() -> None:
         ("role_label", sa.String(length=100), "Therapist"),
         ("qualification", sa.String(length=255), ""),
         ("experience_years", sa.Integer(), "0"),
-        ("languages", sa.Text(), ""),
+        ("languages", sa.Text(), None),
         ("image", sa.String(length=255), "/images/doctor-placeholder.png"),
     ]
 
     for name, column_type, default_value in additions:
         if name not in existing_columns:
+            if name == "languages":
+                column = sa.Column(name, column_type, nullable=True)
+            else:
+                column = sa.Column(name, column_type, nullable=False, server_default=default_value)
             op.add_column(
                 "therapists",
-                sa.Column(name, column_type, nullable=False, server_default=default_value),
+                column,
             )
 
-    op.alter_column("therapists", "role_label", server_default=None)
-    op.alter_column("therapists", "qualification", server_default=None)
-    op.alter_column("therapists", "experience_years", server_default=None)
-    op.alter_column("therapists", "languages", server_default=None)
-    op.alter_column("therapists", "image", server_default=None)
+    op.alter_column("therapists", "role_label", existing_type=sa.String(length=100), server_default=None)
+    op.alter_column("therapists", "qualification", existing_type=sa.String(length=255), server_default=None)
+    op.alter_column("therapists", "experience_years", existing_type=sa.Integer(), server_default=None)
+    op.execute(
+        sa.text(
+            """
+            UPDATE therapists
+            SET languages = CASE
+                WHEN languages IS NULL THEN ''
+                ELSE languages
+            END
+            """
+        )
+    )
+    op.alter_column("therapists", "languages", existing_type=sa.Text(), nullable=False)
+    op.alter_column("therapists", "image", existing_type=sa.String(length=255), server_default=None)
 
 
 def downgrade() -> None:

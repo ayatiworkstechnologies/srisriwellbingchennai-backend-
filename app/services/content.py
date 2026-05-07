@@ -28,12 +28,20 @@ from ..security import get_password_hash
 settings = get_settings()
 
 
-def split_lines(value: str) -> list[str]:
-    return [item.strip() for item in value.splitlines() if item.strip()]
+def split_lines(value: str | list[str] | None) -> list[str]:
+    if isinstance(value, list):
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    if not value:
+        return []
+    return [item.strip() for item in str(value).splitlines() if item.strip()]
 
 
-def join_lines(items: list[str]) -> str:
-    return "\n".join([item.strip() for item in items if item.strip()])
+def join_lines(items: list[str] | str | None) -> str:
+    if isinstance(items, str):
+        return "\n".join([item.strip() for item in items.splitlines() if item.strip()])
+    if not items:
+        return ""
+    return "\n".join([item.strip() for item in items if isinstance(item, str) and item.strip()])
 
 
 def seed_admin_user() -> None:

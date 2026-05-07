@@ -30,13 +30,13 @@ def upgrade() -> None:
     if "short_description" not in existing_columns:
         op.add_column(
             "services",
-            sa.Column("short_description", sa.Text(), nullable=False, server_default=""),
+            sa.Column("short_description", sa.Text(), nullable=True),
         )
 
     if "benefits" not in existing_columns:
         op.add_column(
             "services",
-            sa.Column("benefits", sa.Text(), nullable=False, server_default=""),
+            sa.Column("benefits", sa.Text(), nullable=True),
         )
 
     op.execute(
@@ -63,8 +63,8 @@ def upgrade() -> None:
         )
     )
 
-    op.alter_column("services", "short_description", server_default=None)
-    op.alter_column("services", "benefits", server_default=None)
+    op.alter_column("services", "short_description", existing_type=sa.Text(), nullable=False)
+    op.alter_column("services", "benefits", existing_type=sa.Text(), nullable=False)
 
 
 def downgrade() -> None:
