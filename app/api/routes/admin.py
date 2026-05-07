@@ -93,6 +93,7 @@ from ...services.mail import (
     build_custom_booking_email,
     build_password_reset_email,
     send_email,
+    send_booking_notifications,
 )
 from ...security import create_access_token, create_password_reset_token, decode_password_reset_token, verify_password
 from ...config import get_settings
@@ -713,6 +714,7 @@ def update_booking_status(
     item = get_entity_or_404(TherapyBooking, booking_id, "Booking", db)
     if current_admin.role != "super_admin" and item.therapist_id != current_admin.therapist_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this booking")
+    previous_status = item.status
     updates = payload.model_dump(exclude_none=True)
     send_status_email = updates.pop("send_email", False)
     email_message = updates.pop("email_message", None)
@@ -727,7 +729,24 @@ def update_booking_status(
     db.commit()
     db.refresh(item)
 
-    if send_status_email:
+    status_changed = previous_status != item.status
+    auto_notify_statuses = {"confirmed", "rescheduled", "completed", "cancelled"}
+
+    if status_changed and item.status in auto_notify_statuses:
+        admin_message = {
+            "confirmed": "A booking has been confirmed by the admin team.",
+            "rescheduled": "A booking has been rescheduled by the admin team.",
+            "completed": "A booking has been marked as completed.",
+            "cancelled": "A booking has been cancelled by the admin team.",
+        }.get(item.status)
+        send_booking_notifications(
+            item,
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=email_message,
+            admin_message=admin_message,
+        )
+    elif send_status_email:
         email_payload = build_booking_status_email(item, email_message)
         send_email(
             to_email=item.email,
