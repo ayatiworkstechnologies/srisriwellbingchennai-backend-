@@ -40,7 +40,9 @@ class Service(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    short_description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     description: Mapped[str] = mapped_column(Text, nullable=False)
+    benefits: Mapped[str] = mapped_column(Text, nullable=False, default="")
     image: Mapped[str] = mapped_column(String(255), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
@@ -149,6 +151,11 @@ class Therapist(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    role_label: Mapped[str] = mapped_column(String(100), nullable=False, default="Therapist")
+    qualification: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    experience_years: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    languages: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    image: Mapped[str] = mapped_column(String(255), nullable=False, default="/images/doctor-placeholder.png")
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
     phone: Mapped[str] = mapped_column(String(50), nullable=False)
     specialties: Mapped[str] = mapped_column(Text, nullable=False, default="")

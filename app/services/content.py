@@ -79,10 +79,10 @@ def _seed_services(db: Session) -> None:
 
     db.add_all(
         [
-            Service(title="Nadi Pariksha", description="A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.", image="/images/ser-1.jpg", sort_order=1),
-            Service(title="Panchakarma Rituals", description="A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.", image="/images/ser-2.jpg", sort_order=2),
-            Service(title="Marma Therapy", description="An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.", image="/images/ser-3.jpg", sort_order=3),
-            Service(title="Osteopathic Therapy", description="A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.", image="/images/ser-4.jpg", sort_order=4),
+            Service(title="Nadi Pariksha", short_description="A non-invasive Ayurvedic pulse diagnosis that reveals dosha imbalances and guides personalised care.", description="A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.", benefits=join_lines(["Identifies dosha imbalances", "Supports personalised wellness plans", "Non-invasive and gentle consultation"]), image="/images/ser-1.jpg", sort_order=1),
+            Service(title="Panchakarma Rituals", short_description="A deeply restorative detox and cleansing programme for body, mind, and vitality.", description="A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.", benefits=join_lines(["Deep detoxification support", "Restores internal balance", "Enhances energy and clarity"]), image="/images/ser-2.jpg", sort_order=2),
+            Service(title="Marma Therapy", short_description="A focused Ayurvedic therapy that activates vital energy points for healing and calm.", description="An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.", benefits=join_lines(["Improves energy flow", "Supports stress relief", "Encourages holistic healing"]), image="/images/ser-3.jpg", sort_order=3),
+            Service(title="Osteopathic Therapy", short_description="A manual therapy approach that supports alignment, mobility, and structural wellbeing.", description="A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.", benefits=join_lines(["Supports better mobility", "Helps manage pain", "Improves structural balance"]), image="/images/ser-4.jpg", sort_order=4),
         ]
     )
 
@@ -127,7 +127,9 @@ def as_service(item: Service) -> ServiceResponse:
     return ServiceResponse(
         id=item.id,
         title=item.title,
+        short_description=item.short_description,
         description=item.description,
+        benefits=split_lines(item.benefits),
         image=item.image,
         sort_order=item.sort_order,
         is_active=is_active_flag(item.is_active),

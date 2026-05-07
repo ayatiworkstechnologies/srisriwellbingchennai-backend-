@@ -22,7 +22,8 @@ async def lifespan(_: FastAPI):
             connection.execute(text("SELECT 1"))
 
         seed_admin_user()
-        seed_default_content()
+        if settings.seed_default_content:
+            seed_default_content()
         logger.info("Application startup completed successfully.")
     except Exception:
         logger.exception(

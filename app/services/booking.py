@@ -32,8 +32,10 @@ UNASSIGNED_THERAPIST_ID = 0
 UNASSIGNED_THERAPIST_NAME = "Sri Sri Wellbeing Team"
 
 
-def build_reference_code() -> str:
-    return f"SSW-{datetime.utcnow():%Y%m%d}-{token_hex(3).upper()}"
+def build_reference_code(booking_id: int | None = None) -> str:
+    if booking_id:
+        return f"SSW-{booking_id:06d}"
+    return f"SSW-TMP-{token_hex(4).upper()}"
 
 
 def build_cancel_token() -> str:
@@ -119,6 +121,11 @@ def serialize_therapist(item: Therapist) -> TherapistResponse:
     return TherapistResponse(
         id=item.id,
         full_name=item.full_name,
+        role_label=item.role_label,
+        qualification=item.qualification,
+        experience_years=item.experience_years,
+        languages=split_lines(item.languages),
+        image=item.image,
         email=item.email,
         phone=item.phone,
         specialties=split_lines(item.specialties),

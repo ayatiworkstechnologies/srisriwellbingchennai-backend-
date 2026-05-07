@@ -4,7 +4,7 @@ import smtplib
 from fastapi import HTTPException, status
 
 from ..config import get_settings
-from ..models import TherapyBooking
+from ..models import AdminUser, TherapyBooking
 
 
 def _require_mail_settings():
@@ -139,3 +139,23 @@ def build_custom_booking_email(booking: TherapyBooking, subject: str, message: s
             "<p>Sri Sri Wellbeing Chennai</p>"
         ),
     }
+
+
+def build_password_reset_email(admin_user: AdminUser, reset_link: str):
+    subject = "Reset your Sri Sri Wellbeing admin password"
+    text = (
+        f"Hello {admin_user.full_name},\n\n"
+        "We received a request to reset your admin password.\n\n"
+        f"Reset link: {reset_link}\n\n"
+        "If you did not request this, you can ignore this email.\n\n"
+        "Sri Sri Wellbeing Chennai"
+    )
+    html = (
+        f"<p>Hello {admin_user.full_name},</p>"
+        "<p>We received a request to reset your admin password.</p>"
+        f"<p><a href=\"{reset_link}\">Reset your password</a></p>"
+        f"<p>If the button does not work, use this link:</p><p>{reset_link}</p>"
+        "<p>If you did not request this, you can ignore this email.</p>"
+        "<p>Sri Sri Wellbeing Chennai</p>"
+    )
+    return {"subject": subject, "text": text, "html": html}

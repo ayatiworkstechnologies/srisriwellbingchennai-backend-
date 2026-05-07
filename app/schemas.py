@@ -1,12 +1,12 @@
 from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 InquiryStatus = Literal["new", "contacted", "closed"]
 BookingStatus = Literal["pending", "confirmed", "rescheduled", "completed", "cancelled", "no_show"]
-UserRole = Literal["super_admin", "doctor"]
+UserRole = Literal["super_admin", "doctor", "therapist"]
 
 
 class InquiryCreate(BaseModel):
@@ -82,6 +82,23 @@ class AdminLoginRequest(BaseModel):
     password: str = Field(min_length=6, max_length=128)
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    detail: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=2000)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class ResetPasswordResponse(BaseModel):
+    detail: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -144,11 +161,36 @@ class ContentCategoryResponse(BaseModel):
 
 
 class ServiceBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     title: str = Field(min_length=2, max_length=255)
+    short_description: str = Field(
+        min_length=10,
+        max_length=5000,
+        validation_alias=AliasChoices("short_description", "shortDescription"),
+    )
     description: str = Field(min_length=10, max_length=5000)
+    benefits: list[str] = Field(min_length=1)
     image: str = Field(min_length=1, max_length=255)
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
+
+    @field_validator("title", "short_description", "description", "image", mode="before")
+    @classmethod
+    def strip_service_text(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("benefits", mode="before")
+    @classmethod
+    def normalize_service_benefits(cls, value):
+        if isinstance(value, str):
+            value = value.splitlines()
+        if isinstance(value, list):
+            cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            return cleaned
+        return value
 
 
 class ServiceCreate(ServiceBase):
@@ -214,14 +256,37 @@ class NadiCampResponse(NadiCampBase):
 
 
 class RelaxationTherapyBase(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     title: str = Field(min_length=2, max_length=255)
     duration: str = Field(min_length=2, max_length=50)
-    short_description: str = Field(min_length=10, max_length=5000)
+    short_description: str = Field(
+        min_length=10,
+        max_length=5000,
+        validation_alias=AliasChoices("short_description", "shortDescription"),
+    )
     details: str = Field(min_length=10, max_length=10000)
     benefits: list[str] = Field(min_length=1)
     image: str = Field(min_length=1, max_length=255)
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
+
+    @field_validator("title", "duration", "short_description", "details", "image", mode="before")
+    @classmethod
+    def strip_required_text(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("benefits", mode="before")
+    @classmethod
+    def normalize_benefits(cls, value):
+        if isinstance(value, str):
+            value = value.splitlines()
+        if isinstance(value, list):
+            cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
+            return cleaned
+        return value
 
 
 class RelaxationTherapyCreate(RelaxationTherapyBase):
@@ -346,11 +411,32 @@ class PublicBookingSlotResponse(BookingSlotResponse):
 
 class TherapistBase(BaseModel):
     full_name: str = Field(min_length=2, max_length=255)
+    role_label: str = Field(default="Therapist", min_length=2, max_length=100)
+    qualification: str = Field(default="", max_length=255)
+    experience_years: int = Field(default=0, ge=0, le=80)
+    languages: list[str] = Field(default_factory=list)
+    image: str = Field(default="/images/doctor-placeholder.png", min_length=1, max_length=255)
     email: EmailStr
     phone: str = Field(min_length=6, max_length=50)
     specialties: list[str] = Field(default_factory=list)
     bio: str = Field(default="", max_length=5000)
     is_active: bool = True
+
+    @field_validator("full_name", "role_label", "qualification", "image", "phone", "bio", mode="before")
+    @classmethod
+    def normalize_therapist_text(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("languages", "specialties", mode="before")
+    @classmethod
+    def normalize_therapist_lists(cls, value):
+        if isinstance(value, str):
+            value = value.splitlines()
+        if isinstance(value, list):
+            return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+        return value
 
 
 class TherapistCreate(TherapistBase):

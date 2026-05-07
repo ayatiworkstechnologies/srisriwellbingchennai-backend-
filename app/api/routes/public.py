@@ -227,6 +227,8 @@ def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(g
         status="pending",
     )
     db.add(item)
+    db.flush()
+    item.reference_code = build_reference_code(item.id)
     db.commit()
     db.refresh(item)
 

@@ -23,8 +23,21 @@ def create_access_token(subject: str, role: str = "super_admin", therapist_id: i
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_password_reset_token(subject: str) -> str:
+    expire = datetime.utcnow() + timedelta(minutes=settings.password_reset_expire_minutes)
+    payload = {"sub": subject, "scope": "password_reset", "exp": expire}
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
 def decode_access_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
     except JWTError as exc:
         raise ValueError("Invalid or expired token") from exc
+
+
+def decode_password_reset_token(token: str) -> dict:
+    payload = decode_access_token(token)
+    if payload.get("scope") != "password_reset":
+        raise ValueError("Invalid or expired token")
+    return payload

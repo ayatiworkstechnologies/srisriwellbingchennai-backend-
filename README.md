@@ -55,11 +55,14 @@ DATABASE_URL=mysql+pymysql://root:password@localhost:3306/srisriwellbeing
 JWT_SECRET_KEY=change-this-secret-key
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
+PASSWORD_RESET_EXPIRE_MINUTES=30
 ADMIN_EMAIL=admin@srisriwellbeingchennai.com
 ADMIN_PASSWORD=ChangeMe123!
+SEED_DEFAULT_CONTENT=false
 PROJECT_NAME=Sri Sri Wellbeing Chennai API
 FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com,https://www.srisriwellbeingchennai.com
 FRONTEND_ORIGIN_REGEX=^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$
+ADMIN_RESET_PASSWORD_URL=http://localhost:3000/admin/reset-password
 MAIL_ENABLED=false
 SMTP_HOST=
 SMTP_PORT=587
@@ -102,9 +105,19 @@ On startup, the application:
 
 - Creates database tables from SQLAlchemy metadata
 - Seeds the default admin user
-- Seeds default content data
+- Optionally seeds default content data when `SEED_DEFAULT_CONTENT=true`
 
-This happens in the FastAPI lifespan hook in [app/main.py](/d:/2026/srisri/backend/app/main.py).
+This happens in the FastAPI lifespan hook in [app/main.py](D:\ayati\srisri\srisriwellbingchennai-backend-\app\main.py:1).
+
+## Clear All Data Except Admin Logins
+
+To clear website content, bookings, enquiries, therapist data, and related records while preserving `admin_users` login accounts, run:
+
+```bash
+python clear_non_admin_data.py
+```
+
+This script also clears any `therapist_id` links from admin users so the saved logins remain valid after therapist records are removed.
 
 ## API Overview
 
@@ -131,6 +144,8 @@ This happens in the FastAPI lifespan hook in [app/main.py](/d:/2026/srisri/backe
 ### Admin APIs
 
 - `POST /api/v1/admin/login`
+- `POST /api/v1/admin/forgot-password`
+- `POST /api/v1/admin/reset-password`
 - `GET /api/v1/admin/dashboard`
 - `GET /api/v1/admin/inquiries`
 - `PATCH /api/v1/admin/inquiries/{inquiry_id}`

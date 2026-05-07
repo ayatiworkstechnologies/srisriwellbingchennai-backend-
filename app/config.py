@@ -14,8 +14,10 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-this-secret-key"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
+    password_reset_expire_minutes: int = 30
     admin_email: str = "admin@srisriwellbeingchennai.com"
     admin_password: str = "ChangeMe123!"
+    seed_default_content: bool = False
     frontend_origin: str = "http://localhost:3000"
     frontend_origin_regex: str = (
         r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$"
@@ -29,6 +31,7 @@ class Settings(BaseSettings):
     smtp_use_ssl: bool = False
     smtp_from_email: str | None = None
     smtp_from_name: str = "Sri Sri Wellbeing Chennai"
+    admin_reset_password_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -62,6 +65,14 @@ class Settings(BaseSettings):
     @property
     def frontend_origins(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.frontend_origin.split(",") if origin.strip()]
+
+    @property
+    def password_reset_url(self) -> str:
+        if self.admin_reset_password_url:
+            return self.admin_reset_password_url.rstrip("/")
+        origins = self.frontend_origins
+        base_origin = origins[0] if origins else "http://localhost:3000"
+        return f"{base_origin}/admin/reset-password"
 
 
 @lru_cache
