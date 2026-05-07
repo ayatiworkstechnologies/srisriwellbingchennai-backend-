@@ -164,12 +164,12 @@ class ServiceBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     title: str = Field(min_length=2, max_length=255)
-    short_description: str = Field(
-        min_length=10,
+    short_description: str | None = Field(
+        default=None,
         max_length=5000,
         validation_alias=AliasChoices("short_description", "shortDescription"),
     )
-    description: str = Field(min_length=10, max_length=5000)
+    description: str | None = Field(default=None, max_length=5000)
     benefits: list[str] = Field(min_length=1)
     image: str = Field(min_length=1, max_length=255)
     sort_order: int = Field(default=0, ge=0)
@@ -179,7 +179,8 @@ class ServiceBase(BaseModel):
     @classmethod
     def strip_service_text(cls, value):
         if isinstance(value, str):
-            return value.strip()
+            value = value.strip()
+            return value or None
         return value
 
     @field_validator("benefits", mode="before")
@@ -191,6 +192,16 @@ class ServiceBase(BaseModel):
             cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
             return cleaned
         return value
+
+    @model_validator(mode="after")
+    def ensure_service_descriptions(self):
+        if not self.short_description and not self.description:
+            raise ValueError("Either short description or public description is required")
+        if not self.short_description and self.description:
+            self.short_description = self.description
+        if not self.description and self.short_description:
+            self.description = self.short_description
+        return self
 
 
 class ServiceCreate(ServiceBase):
@@ -260,12 +271,12 @@ class RelaxationTherapyBase(BaseModel):
 
     title: str = Field(min_length=2, max_length=255)
     duration: str = Field(min_length=2, max_length=50)
-    short_description: str = Field(
-        min_length=10,
+    short_description: str | None = Field(
+        default=None,
         max_length=5000,
         validation_alias=AliasChoices("short_description", "shortDescription"),
     )
-    details: str = Field(min_length=10, max_length=10000)
+    details: str | None = Field(default=None, max_length=10000)
     benefits: list[str] = Field(min_length=1)
     image: str = Field(min_length=1, max_length=255)
     sort_order: int = Field(default=0, ge=0)
@@ -275,7 +286,8 @@ class RelaxationTherapyBase(BaseModel):
     @classmethod
     def strip_required_text(cls, value):
         if isinstance(value, str):
-            return value.strip()
+            value = value.strip()
+            return value or None
         return value
 
     @field_validator("benefits", mode="before")
@@ -287,6 +299,16 @@ class RelaxationTherapyBase(BaseModel):
             cleaned = [item.strip() for item in value if isinstance(item, str) and item.strip()]
             return cleaned
         return value
+
+    @model_validator(mode="after")
+    def ensure_relaxation_descriptions(self):
+        if not self.short_description and not self.details:
+            raise ValueError("Either short description or deep details is required")
+        if not self.short_description and self.details:
+            self.short_description = self.details
+        if not self.details and self.short_description:
+            self.details = self.short_description
+        return self
 
 
 class RelaxationTherapyCreate(RelaxationTherapyBase):
