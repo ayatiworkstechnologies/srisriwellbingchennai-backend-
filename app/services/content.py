@@ -14,6 +14,7 @@ from ..models import (
     Testimonial,
 )
 from ..schemas import (
+    AdminUserResponse,
     AlternativeTreatmentResponse,
     NadiCampResponse,
     PanchakarmaCoreTherapyResponse,
@@ -43,12 +44,16 @@ def seed_admin_user() -> None:
         if existing_admin:
             existing_admin.full_name = "Sri Sri Wellbeing Admin"
             existing_admin.hashed_password = hashed_password
+            existing_admin.role = "super_admin"
+            existing_admin.is_active = "true"
         else:
             db.add(
                 AdminUser(
                     email=settings.admin_email,
                     full_name="Sri Sri Wellbeing Admin",
                     hashed_password=hashed_password,
+                    role="super_admin",
+                    is_active="true",
                 )
             )
         db.commit()
@@ -209,6 +214,18 @@ def as_pk_other(item: PanchakarmaOtherTreatment) -> PanchakarmaOtherTreatmentRes
         category=item.category,
         desc=item.desc,
         sort_order=item.sort_order,
+        is_active=is_active_flag(item.is_active),
+        created_at=item.created_at,
+    )
+
+
+def as_admin_user(item: AdminUser) -> AdminUserResponse:
+    return AdminUserResponse(
+        id=item.id,
+        email=item.email,
+        full_name=item.full_name,
+        role=item.role,
+        therapist_id=item.therapist_id,
         is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
     )

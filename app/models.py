@@ -13,6 +13,9 @@ class AdminUser(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False, default="Sri Sri Wellbeing Admin")
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(32), nullable=False, default="super_admin", index=True)
+    therapist_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 

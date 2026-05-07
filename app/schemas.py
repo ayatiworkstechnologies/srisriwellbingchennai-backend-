@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, mo
 
 InquiryStatus = Literal["new", "contacted", "closed"]
 BookingStatus = Literal["pending", "confirmed", "rescheduled", "completed", "cancelled", "no_show"]
+UserRole = Literal["super_admin", "doctor"]
 
 
 class InquiryCreate(BaseModel):
@@ -84,6 +85,9 @@ class AdminLoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    role: UserRole = "super_admin"
+    full_name: str | None = None
+    therapist_id: int | None = None
 
 
 class HealthResponse(BaseModel):
@@ -102,6 +106,36 @@ class AdminBootstrapResponse(BaseModel):
     relaxation_therapies: list["RelaxationTherapyResponse"]
     therapists: list["TherapistResponse"]
     bookings: list["TherapyBookingResponse"]
+
+
+class AdminUserCreate(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=2, max_length=255)
+    password: str = Field(min_length=6, max_length=128)
+    role: UserRole = "doctor"
+    therapist_id: int | None = Field(default=None, ge=1)
+    is_active: bool = True
+
+
+class AdminUserUpdate(BaseModel):
+    email: EmailStr
+    full_name: str = Field(min_length=2, max_length=255)
+    password: str | None = Field(default=None, min_length=6, max_length=128)
+    role: UserRole = "doctor"
+    therapist_id: int | None = Field(default=None, ge=1)
+    is_active: bool = True
+
+
+class AdminUserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str
+    role: UserRole
+    therapist_id: int | None = None
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContentCategoryResponse(BaseModel):
