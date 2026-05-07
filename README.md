@@ -64,8 +64,10 @@ MAIL_ENABLED=false
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_USERNAME=
+SMTP_USER=
 SMTP_PASSWORD=
 SMTP_USE_TLS=true
+SMTP_USE_SSL=false
 SMTP_FROM_EMAIL=
 SMTP_FROM_NAME=Sri Sri Wellbeing Chennai
 ```
@@ -163,3 +165,4 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 - `.env.example` is intended to stay committed, while `.env` should remain local only.
 - Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.
 - Booking emails can be sent from admin, and public booking create/cancel flows can also send client emails when SMTP is configured and `MAIL_ENABLED=true`.
+- If your provider uses port `465`, prefer `SMTP_USE_SSL=true` and `SMTP_USE_TLS=false`. If it uses port `587`, use `SMTP_USE_TLS=true`.

@@ -40,8 +40,9 @@ def send_email(*, to_email: str, subject: str, html_body: str, text_body: str):
     message.add_alternative(html_body, subtype="html")
 
     try:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as server:
-            if settings.smtp_use_tls:
+        smtp_client = smtplib.SMTP_SSL if settings.smtp_use_ssl else smtplib.SMTP
+        with smtp_client(settings.smtp_host, settings.smtp_port, timeout=20) as server:
+            if settings.smtp_use_tls and not settings.smtp_use_ssl:
                 server.starttls()
             if settings.smtp_username and settings.smtp_password:
                 server.login(settings.smtp_username, settings.smtp_password)

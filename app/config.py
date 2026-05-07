@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     smtp_username: str | None = None
     smtp_password: str | None = None
     smtp_use_tls: bool = True
+    smtp_use_ssl: bool = False
     smtp_from_email: str | None = None
     smtp_from_name: str = "Sri Sri Wellbeing Chennai"
 
@@ -39,6 +40,17 @@ class Settings(BaseSettings):
         render_enabled = os.getenv("RENDER", "").lower() == "true"
         parsed = urlparse(self.database_url)
         host = (parsed.hostname or "").lower()
+
+        # Support legacy env naming used in some deployments.
+        if not self.smtp_username:
+            legacy_username = os.getenv("SMTP_USER")
+            if legacy_username:
+                self.smtp_username = legacy_username
+
+        # Port 465 usually expects implicit SSL instead of STARTTLS.
+        if self.smtp_port == 465 and not self.smtp_use_ssl:
+            self.smtp_use_ssl = True
+            self.smtp_use_tls = False
 
         if render_enabled and host in {"localhost", "127.0.0.1"}:
             raise ValueError(
