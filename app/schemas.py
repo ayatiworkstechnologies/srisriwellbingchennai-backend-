@@ -571,6 +571,20 @@ class TherapyBookingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BookingEmailLogResponse(BaseModel):
+    id: int
+    booking_id: int
+    audience: str
+    event_key: str
+    recipient_email: EmailStr
+    subject: str
+    delivery_status: str
+    error_message: str | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TherapyBookingStatusUpdate(BaseModel):
     status: BookingStatus | None = None
     therapist_id: int | None = Field(default=None, ge=1)

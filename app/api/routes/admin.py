@@ -14,6 +14,7 @@ from ...database import get_db
 from ...models import (
     AdminUser,
     AlternativeTreatment,
+    BookingEmailLog,
     BookingSlot,
     Inquiry,
     NadiCamp,
@@ -41,6 +42,7 @@ from ...schemas import (
     BookingSlotCreate,
     BookingClientEmailRequest,
     BookingClientEmailResponse,
+    BookingEmailLogResponse,
     BookingSlotResponse,
     BookingSlotUpdate,
     DashboardResponse,
@@ -92,8 +94,9 @@ from ...services.mail import (
     build_booking_status_email,
     build_custom_booking_email,
     build_password_reset_email,
+    log_booking_email,
     send_email,
-    send_booking_notifications,
+    send_booking_event_notifications,
 )
 from ...security import create_access_token, create_password_reset_token, decode_password_reset_token, verify_password
 from ...config import get_settings
@@ -171,11 +174,12 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 @router.get("/dashboard", response_model=DashboardResponse, include_in_schema=False)
 def admin_dashboard(current_admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
     if current_admin.role != "super_admin" and current_admin.therapist_id:
+        bookings_query = db.query(TherapyBooking).filter(TherapyBooking.therapist_id == current_admin.therapist_id)
         return DashboardResponse(
-            total_inquiries=0,
-            new_inquiries=0,
-            contacted_inquiries=0,
-            closed_inquiries=0,
+            total_inquiries=bookings_query.count(),
+            new_inquiries=bookings_query.filter(TherapyBooking.status == "pending").count(),
+            contacted_inquiries=bookings_query.filter(TherapyBooking.status == "confirmed").count(),
+            closed_inquiries=bookings_query.filter(TherapyBooking.status == "completed").count(),
         )
     return DashboardResponse(
         total_inquiries=db.query(func.count(Inquiry.id)).scalar() or 0,
@@ -715,6 +719,11 @@ def update_booking_status(
     if current_admin.role != "super_admin" and item.therapist_id != current_admin.therapist_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this booking")
     previous_status = item.status
+    previous_therapist_id = item.therapist_id
+    previous_therapist_name = item.therapist_name
+    previous_booking_date = item.booking_date
+    previous_start_time = item.start_time
+    previous_end_time = item.end_time
     updates = payload.model_dump(exclude_none=True)
     send_status_email = updates.pop("send_email", False)
     email_message = updates.pop("email_message", None)
@@ -730,32 +739,145 @@ def update_booking_status(
     db.refresh(item)
 
     status_changed = previous_status != item.status
-    auto_notify_statuses = {"confirmed", "rescheduled", "completed", "cancelled"}
+    assignment_changed = any(
+        [
+            previous_therapist_id != item.therapist_id,
+            previous_therapist_name != item.therapist_name,
+            previous_booking_date != item.booking_date,
+            previous_start_time != item.start_time,
+            previous_end_time != item.end_time,
+        ]
+    )
+    therapist_changed = previous_therapist_id != item.therapist_id or previous_therapist_name != item.therapist_name
+    slot_changed = previous_booking_date != item.booking_date or previous_start_time != item.start_time or previous_end_time != item.end_time
+    auto_email_sent = False
 
-    if status_changed and item.status in auto_notify_statuses:
-        admin_message = {
-            "confirmed": "A booking has been confirmed by the admin team.",
-            "rescheduled": "A booking has been rescheduled by the admin team.",
-            "completed": "A booking has been marked as completed.",
-            "cancelled": "A booking has been cancelled by the admin team.",
-        }.get(item.status)
-        send_booking_notifications(
+    if status_changed and item.status == "confirmed":
+        send_booking_event_notifications(
+            db,
             item,
+            event_key="approved",
             notify_customer=True,
             notify_admin=True,
             customer_message=email_message,
-            admin_message=admin_message,
+            admin_message="The appointment has been approved by the admin team.",
         )
-    elif send_status_email:
+        auto_email_sent = True
+    if status_changed and item.status == "rescheduled":
+        send_booking_event_notifications(
+            db,
+            item,
+            event_key="rescheduled",
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=email_message,
+            admin_message="The appointment has been rescheduled by the admin team.",
+        )
+        auto_email_sent = True
+    if status_changed and item.status == "completed":
+        send_booking_event_notifications(
+            db,
+            item,
+            event_key="completed",
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=email_message,
+            admin_message="The appointment has been marked as completed.",
+        )
+        auto_email_sent = True
+    if status_changed and item.status == "cancelled":
+        send_booking_event_notifications(
+            db,
+            item,
+            event_key="cancelled_by_admin",
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=email_message,
+            admin_message="The appointment has been cancelled by the admin team.",
+        )
+        auto_email_sent = True
+    if assignment_changed and item.status not in {"cancelled", "completed"}:
+        if therapist_changed and slot_changed:
+            assignment_event_key = "therapist_and_slot_assigned"
+            assignment_message = email_message or "Your therapist and appointment slot details have now been finalized."
+            assignment_admin_message = "The booking now has both therapist and final slot details assigned."
+        elif therapist_changed:
+            assignment_event_key = "therapist_assigned"
+            assignment_message = email_message or "Your therapist has now been assigned for the appointment."
+            assignment_admin_message = "A therapist has been assigned to the booking."
+        else:
+            assignment_event_key = "slot_assigned"
+            assignment_message = email_message or "Your final appointment time slot has now been assigned."
+            assignment_admin_message = "A final appointment slot has been assigned to the booking."
+
+        send_booking_event_notifications(
+            db,
+            item,
+            event_key=assignment_event_key,
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=assignment_message,
+            admin_message=assignment_admin_message,
+        )
+        auto_email_sent = True
+    if send_status_email and not auto_email_sent:
         email_payload = build_booking_status_email(item, email_message)
-        send_email(
-            to_email=item.email,
-            subject=email_payload["subject"],
-            html_body=email_payload["html"],
-            text_body=email_payload["text"],
-        )
+        try:
+            send_email(
+                to_email=item.email,
+                subject=email_payload["subject"],
+                html_body=email_payload["html"],
+                text_body=email_payload["text"],
+            )
+            log_booking_email(
+                db,
+                booking_id=item.id,
+                audience="customer",
+                event_key="manual_status_update",
+                recipient_email=item.email,
+                subject=email_payload["subject"],
+                delivery_status="sent",
+            )
+        except HTTPException as exc:
+            log_booking_email(
+                db,
+                booking_id=item.id,
+                audience="customer",
+                event_key="manual_status_update",
+                recipient_email=item.email,
+                subject=email_payload["subject"],
+                delivery_status="failed",
+                error_message=str(exc.detail),
+            )
+            raise
 
     return serialize_booking(item)
+
+
+@router.get(
+    "/booking/appointments/{booking_id}/email-logs",
+    response_model=list[BookingEmailLogResponse],
+    tags=["Admin Booking"],
+)
+@router.get(
+    "/bookings/{booking_id}/email-logs",
+    response_model=list[BookingEmailLogResponse],
+    include_in_schema=False,
+)
+def list_booking_email_logs(
+    booking_id: int,
+    current_admin: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    booking = get_entity_or_404(TherapyBooking, booking_id, "Booking", db)
+    if current_admin.role != "super_admin" and booking.therapist_id != current_admin.therapist_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this booking")
+    return (
+        db.query(BookingEmailLog)
+        .filter(BookingEmailLog.booking_id == booking_id)
+        .order_by(BookingEmailLog.created_at.desc(), BookingEmailLog.id.desc())
+        .all()
+    )
 
 
 @router.post(
@@ -771,17 +893,41 @@ def update_booking_status(
 def send_booking_email(
     booking_id: int,
     payload: BookingClientEmailRequest,
-    _: AdminUser = Depends(get_current_super_admin),
+    current_admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
     item = get_entity_or_404(TherapyBooking, booking_id, "Booking", db)
+    if current_admin.role != "super_admin" and item.therapist_id != current_admin.therapist_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have access to this booking")
     email_payload = build_custom_booking_email(item, payload.subject, payload.message)
-    send_email(
-        to_email=item.email,
-        subject=email_payload["subject"],
-        html_body=email_payload["html"],
-        text_body=email_payload["text"],
-    )
+    try:
+        send_email(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
+        log_booking_email(
+            db,
+            booking_id=item.id,
+            audience="customer",
+            event_key="manual_custom_email",
+            recipient_email=item.email,
+            subject=email_payload["subject"],
+            delivery_status="sent",
+        )
+    except HTTPException as exc:
+        log_booking_email(
+            db,
+            booking_id=item.id,
+            audience="customer",
+            event_key="manual_custom_email",
+            recipient_email=item.email,
+            subject=email_payload["subject"],
+            delivery_status="failed",
+            error_message=str(exc.detail),
+        )
+        raise
     return BookingClientEmailResponse(
         detail="Email sent successfully",
         recipient=item.email,

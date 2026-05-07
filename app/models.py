@@ -213,3 +213,17 @@ class TherapyBooking(Base):
     cancellation_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class BookingEmailLog(Base):
+    __tablename__ = "booking_email_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    booking_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    audience: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    event_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    recipient_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    delivery_status: Mapped[str] = mapped_column(String(32), nullable=False, default="sent", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)

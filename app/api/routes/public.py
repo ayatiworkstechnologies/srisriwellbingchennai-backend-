@@ -48,7 +48,7 @@ from ...services.booking import (
     serialize_booking,
     serialize_cancel_response,
 )
-from ...services.mail import send_booking_notifications
+from ...services.mail import send_booking_event_notifications
 from ...services.content import (
     as_alt,
     as_nadi_camp,
@@ -228,8 +228,10 @@ def create_public_booking(payload: TherapyBookingCreate, db: Session = Depends(g
     db.commit()
     db.refresh(item)
 
-    send_booking_notifications(
+    send_booking_event_notifications(
+        db,
         item,
+        event_key="request_received",
         notify_customer=True,
         notify_admin=True,
         customer_message=(
@@ -262,8 +264,10 @@ def cancel_public_booking(payload: BookingCancelRequest, db: Session = Depends(g
     db.commit()
     db.refresh(item)
 
-    send_booking_notifications(
+    send_booking_event_notifications(
+        db,
         item,
+        event_key="cancelled_by_customer",
         notify_customer=True,
         notify_admin=True,
         customer_message=(
