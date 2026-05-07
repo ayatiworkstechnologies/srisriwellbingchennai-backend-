@@ -58,7 +58,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ADMIN_EMAIL=admin@srisriwellbeingchennai.com
 ADMIN_PASSWORD=ChangeMe123!
 PROJECT_NAME=Sri Sri Wellbeing Chennai API
-FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com
+FRONTEND_ORIGIN=http://localhost:3000,https://srisriwellbeingchennai.vercel.app,https://srisriwellbeingchennai.com,https://www.srisriwellbeingchennai.com
+FRONTEND_ORIGIN_REGEX=^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$
 ```
 
 ## Local Setup
@@ -149,7 +150,7 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 
 ## Notes
 
-- CORS is restricted to the comma-separated origins configured in `FRONTEND_ORIGIN`.
+- CORS is restricted to the comma-separated origins configured in `FRONTEND_ORIGIN` plus any origins matched by `FRONTEND_ORIGIN_REGEX`.
 - The backend relies on Alembic migrations for schema changes and no longer creates tables during app startup.
 - `.env.example` is intended to stay committed, while `.env` should remain local only.
 - Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.

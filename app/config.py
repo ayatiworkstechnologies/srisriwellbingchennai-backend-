@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +17,9 @@ class Settings(BaseSettings):
     admin_email: str = "admin@srisriwellbeingchennai.com"
     admin_password: str = "ChangeMe123!"
     frontend_origin: str = "http://localhost:3000"
+    frontend_origin_regex: str = (
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$|^https://.*\.vercel\.app$"
+    )
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -37,15 +39,9 @@ class Settings(BaseSettings):
                 "'mysql+pymysql://USER:PASSWORD@mysql:3306/DBNAME' or your external MySQL host."
             )
 
-    @computed_field
     @property
     def frontend_origins(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.frontend_origin.split(",") if origin.strip()]
-
-    @computed_field
-    @property
-    def frontend_origin_regex(self) -> str:
-        return r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
 
 
 @lru_cache
