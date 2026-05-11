@@ -31,7 +31,9 @@ class Settings(BaseSettings):
     smtp_use_ssl: bool = False
     smtp_from_email: str | None = None
     smtp_from_name: str = "Sri Sri Wellbeing Chennai"
+    smtp_reply_to_email: str | None = None
     admin_reset_password_url: str | None = None
+    admin_login_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -73,6 +75,14 @@ class Settings(BaseSettings):
         origins = self.frontend_origins
         base_origin = origins[0] if origins else "http://localhost:3000"
         return f"{base_origin}/admin/reset-password"
+
+    @property
+    def login_url(self) -> str:
+        if self.admin_login_url:
+            return self.admin_login_url.rstrip("/")
+        origins = self.frontend_origins
+        base_origin = origins[0] if origins else "http://localhost:3000"
+        return f"{base_origin}/admin/login"
 
 
 @lru_cache

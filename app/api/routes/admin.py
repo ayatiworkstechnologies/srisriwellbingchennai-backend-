@@ -46,6 +46,10 @@ from ...schemas import (
     BookingSlotResponse,
     BookingSlotUpdate,
     DashboardResponse,
+    EmailNotificationSettingsResponse,
+    EmailNotificationSettingsUpdate,
+    InquiryEmailRequest,
+    InquiryEmailResponse,
     InquiryResponse,
     InquiryStatusUpdate,
     NadiCampCreate,
@@ -91,12 +95,17 @@ from ...services.booking import (
     serialize_therapist,
 )
 from ...services.mail import (
-    build_booking_status_email,
     build_custom_booking_email,
+    build_admin_login_welcome_email,
+    build_inquiry_email,
     build_password_reset_email,
+    get_email_notification_settings,
     log_booking_email,
+    serialize_email_notification_settings,
     send_email,
+    send_email_safe,
     send_booking_event_notifications,
+    update_email_notification_settings,
 )
 from ...security import create_access_token, create_password_reset_token, decode_password_reset_token, verify_password
 from ...config import get_settings
@@ -189,6 +198,26 @@ def admin_dashboard(current_admin: AdminUser = Depends(get_current_admin), db: S
     )
 
 
+@router.get("/settings/email-notifications", response_model=EmailNotificationSettingsResponse, tags=["Admin Settings"])
+def get_email_settings(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    return serialize_email_notification_settings(get_email_notification_settings(db))
+
+
+@router.put("/settings/email-notifications", response_model=EmailNotificationSettingsResponse, tags=["Admin Settings"])
+def update_email_settings(
+    payload: EmailNotificationSettingsUpdate,
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
+    settings_row = update_email_notification_settings(
+        db,
+        booking_to_emails=[str(email) for email in payload.booking_to_emails],
+        booking_cc_emails=[str(email) for email in payload.booking_cc_emails],
+        booking_bcc_emails=[str(email) for email in payload.booking_bcc_emails],
+    )
+    return serialize_email_notification_settings(settings_row)
+
+
 @router.get("/bootstrap", response_model=AdminBootstrapResponse, tags=["Admin Dashboard"])
 def admin_bootstrap(
     current_admin: AdminUser = Depends(get_current_admin),
@@ -249,6 +278,19 @@ def create_admin_user(payload: AdminUserCreate, _: AdminUser = Depends(get_curre
     db.add(item)
     db.commit()
     db.refresh(item)
+    if payload.send_welcome_email:
+        settings = get_settings()
+        email_payload = build_admin_login_welcome_email(
+            item,
+            temporary_password=payload.password,
+            login_link=settings.login_url,
+        )
+        send_email_safe(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
     return as_admin_user(item)
 
 
@@ -278,6 +320,19 @@ def update_admin_user(
         item.hashed_password = get_password_hash(payload.password)
     db.commit()
     db.refresh(item)
+    if payload.password and payload.send_welcome_email:
+        settings = get_settings()
+        email_payload = build_admin_login_welcome_email(
+            item,
+            temporary_password=payload.password,
+            login_link=settings.login_url,
+        )
+        send_email_safe(
+            to_email=item.email,
+            subject=email_payload["subject"],
+            html_body=email_payload["html"],
+            text_body=email_payload["text"],
+        )
     return as_admin_user(item)
 
 
@@ -327,6 +382,36 @@ def update_inquiry_status(
 ):
     item = get_entity_or_404(Inquiry, inquiry_id, "Inquiry", db)
     return update_entity(item, payload, db)
+
+
+@router.post("/crm/inquiries/{inquiry_id}/send-email", response_model=InquiryEmailResponse, tags=["Admin CRM"])
+@router.post("/inquiries/{inquiry_id}/send-email", response_model=InquiryEmailResponse, include_in_schema=False)
+def send_inquiry_email(
+    inquiry_id: int,
+    payload: InquiryEmailRequest,
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
+    item = get_entity_or_404(Inquiry, inquiry_id, "Inquiry", db)
+    email_payload = build_inquiry_email(item, payload.subject, payload.message)
+    send_email(
+        to_email=[str(email) for email in payload.to],
+        cc=[str(email) for email in payload.cc],
+        bcc=[str(email) for email in payload.bcc],
+        subject=email_payload["subject"],
+        html_body=email_payload["html"],
+        text_body=email_payload["text"],
+    )
+    item.status = "contacted"
+    db.commit()
+    db.refresh(item)
+    return InquiryEmailResponse(
+        detail="Enquiry email sent successfully",
+        to=payload.to,
+        cc=payload.cc,
+        bcc=payload.bcc,
+        subject=email_payload["subject"],
+    )
 
 
 @router.delete("/crm/inquiries/{inquiry_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin CRM"])
@@ -821,35 +906,18 @@ def update_booking_status(
         )
         auto_email_sent = True
     if send_status_email and not auto_email_sent:
-        email_payload = build_booking_status_email(item, email_message)
-        try:
-            send_email(
-                to_email=item.email,
-                subject=email_payload["subject"],
-                html_body=email_payload["html"],
-                text_body=email_payload["text"],
-            )
-            log_booking_email(
-                db,
-                booking_id=item.id,
-                audience="customer",
-                event_key="manual_status_update",
-                recipient_email=item.email,
-                subject=email_payload["subject"],
-                delivery_status="sent",
-            )
-        except HTTPException as exc:
-            log_booking_email(
-                db,
-                booking_id=item.id,
-                audience="customer",
-                event_key="manual_status_update",
-                recipient_email=item.email,
-                subject=email_payload["subject"],
-                delivery_status="failed",
-                error_message=str(exc.detail),
-            )
-            raise
+        send_booking_event_notifications(
+            db,
+            item,
+            event_key="manual_status_update",
+            notify_customer=True,
+            notify_admin=True,
+            customer_message=email_message,
+            admin_message=(
+                f"Manual status update sent by {current_admin.full_name}. "
+                f"Current status: {item.status.replace('_', ' ').title()}."
+            ),
+        )
 
     return serialize_booking(item)
 

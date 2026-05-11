@@ -77,6 +77,59 @@ class InquiryStatusUpdate(BaseModel):
     status: InquiryStatus
 
 
+class InquiryEmailRequest(BaseModel):
+    to: list[EmailStr] = Field(min_length=1, max_length=20)
+    cc: list[EmailStr] = Field(default_factory=list, max_length=20)
+    bcc: list[EmailStr] = Field(default_factory=list, max_length=20)
+    subject: str = Field(min_length=3, max_length=255)
+    message: str = Field(min_length=5, max_length=5000)
+
+    @field_validator("to", "cc", "bcc", mode="before")
+    @classmethod
+    def normalize_email_recipients(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+
+class InquiryEmailResponse(BaseModel):
+    detail: str
+    to: list[EmailStr]
+    cc: list[EmailStr] = Field(default_factory=list)
+    bcc: list[EmailStr] = Field(default_factory=list)
+    subject: str
+
+
+class EmailNotificationSettingsUpdate(BaseModel):
+    booking_to_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    booking_cc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    booking_bcc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+
+    @field_validator("booking_to_emails", "booking_cc_emails", "booking_bcc_emails", mode="before")
+    @classmethod
+    def normalize_email_list(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            return [
+                item.strip()
+                for item in value.replace("\n", ",").split(",")
+                if item.strip()
+            ]
+        return value
+
+
+class EmailNotificationSettingsResponse(BaseModel):
+    id: int
+    booking_to_emails: list[EmailStr]
+    booking_cc_emails: list[EmailStr] = Field(default_factory=list)
+    booking_bcc_emails: list[EmailStr] = Field(default_factory=list)
+    updated_at: datetime
+    created_at: datetime
+
+
 class AdminLoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
@@ -132,6 +185,7 @@ class AdminUserCreate(BaseModel):
     role: UserRole = "doctor"
     therapist_id: int | None = Field(default=None, ge=1)
     is_active: bool = True
+    send_welcome_email: bool = True
 
 
 class AdminUserUpdate(BaseModel):
@@ -141,6 +195,7 @@ class AdminUserUpdate(BaseModel):
     role: UserRole = "doctor"
     therapist_id: int | None = Field(default=None, ge=1)
     is_active: bool = True
+    send_welcome_email: bool = False
 
 
 class AdminUserResponse(BaseModel):
@@ -612,6 +667,11 @@ class BookingCancelRequest(BaseModel):
     reference_code: str = Field(min_length=4, max_length=32)
     email: EmailStr
     reason: str | None = Field(default=None, max_length=2000)
+
+
+class BookingLookupRequest(BaseModel):
+    reference_code: str = Field(min_length=4, max_length=32)
+    email: EmailStr
 
 
 class BookingCancelResponse(BaseModel):

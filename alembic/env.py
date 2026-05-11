@@ -8,7 +8,9 @@ from app.database import Base
 from app.models import (
     AdminUser,
     AlternativeTreatment,
+    BookingEmailLog,
     BookingSlot,
+    EmailNotificationSettings,
     Inquiry,
     NadiCamp,
     PanchakarmaCoreTherapy,

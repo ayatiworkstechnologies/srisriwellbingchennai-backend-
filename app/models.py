@@ -227,3 +227,14 @@ class BookingEmailLog(Base):
     delivery_status: Mapped[str] = mapped_column(String(32), nullable=False, default="sent", index=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class EmailNotificationSettings(Base):
+    __tablename__ = "email_notification_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    booking_to_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    booking_cc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    booking_bcc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)

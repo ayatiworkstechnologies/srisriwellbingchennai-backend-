@@ -24,6 +24,7 @@ from ...schemas import (
     AlternativeTreatmentResponse,
     BookingCancelRequest,
     BookingCancelResponse,
+    BookingLookupRequest,
     ContentCategoryResponse,
     InquiryCreate,
     InquiryResponse,
@@ -278,3 +279,16 @@ def cancel_public_booking(payload: BookingCancelRequest, db: Session = Depends(g
     )
 
     return serialize_cancel_response(item)
+
+
+@router.post("/booking/appointments/lookup", response_model=TherapyBookingResponse, tags=["Public Booking"])
+@router.post("/public/bookings/lookup", response_model=TherapyBookingResponse, include_in_schema=False)
+def lookup_public_booking(payload: BookingLookupRequest, db: Session = Depends(get_db)):
+    item = (
+        db.query(TherapyBooking)
+        .filter(TherapyBooking.reference_code == payload.reference_code, TherapyBooking.email == payload.email)
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found")
+    return serialize_booking(item)
