@@ -49,10 +49,11 @@ requirements.txt
 ## Configuration
 
 Copy `.env.example` to `.env` and update the values for your environment.
+For Render deployment, use `render.env.example` as the checklist for service environment variables.
 
 ```env
 DATABASE_URL=mysql+pymysql://root:password@localhost:3306/srisriwellbeing
-JWT_SECRET_KEY=change-this-secret-key
+JWT_SECRET_KEY=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 PASSWORD_RESET_EXPIRE_MINUTES=30
@@ -69,8 +70,11 @@ SMTP_PORT=587
 SMTP_USERNAME=
 SMTP_USER=
 SMTP_PASSWORD=
+SMTP_PASS=
 SMTP_USE_TLS=true
 SMTP_USE_SSL=false
+SMTP_TIMEOUT_SECONDS=20
+SMTP_LOCAL_HOSTNAME=
 SMTP_FROM_EMAIL=
 SMTP_FROM_NAME=Sri Sri Wellbeing Chennai
 ```
@@ -181,3 +185,4 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 - Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.
 - Booking emails can be sent from admin, and public booking create/cancel flows can also send client emails when SMTP is configured and `MAIL_ENABLED=true`.
 - If your provider uses port `465`, prefer `SMTP_USE_SSL=true` and `SMTP_USE_TLS=false`. If it uses port `587`, use `SMTP_USE_TLS=true`.
+- If the API returns `SMTP login succeeded, but the mail server refused all recipients`, the backend credentials are loading correctly and the SMTP relay itself must be fixed by the mail host.

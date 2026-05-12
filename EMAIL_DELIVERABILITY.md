@@ -14,6 +14,8 @@ SMTP_USERNAME=your-smtp-user
 SMTP_PASSWORD=your-smtp-password
 SMTP_USE_TLS=true
 SMTP_USE_SSL=false
+SMTP_TIMEOUT_SECONDS=20
+SMTP_LOCAL_HOSTNAME=
 SMTP_FROM_EMAIL=bookings@srisriwellbeingchennai.com
 SMTP_FROM_NAME=Sri Sri Wellbeing Chennai
 SMTP_REPLY_TO_EMAIL=admin@srisriwellbeingchennai.com
@@ -52,3 +54,4 @@ Start DMARC with `p=none` if you are still testing, then move to `quarantine` or
 - Avoid spam words, all-caps subjects, and link-heavy content.
 - Keep a plain-text version with every HTML email.
 - Use one trusted SMTP provider consistently so sender reputation can build.
+- A `451 Temporary local problem` response after successful SMTP login means the provider accepted authentication but refused recipient relay. Fix the mailbox/domain/relay setting in the mail host before changing application code.

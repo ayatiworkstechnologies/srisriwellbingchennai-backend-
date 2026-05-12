@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings(BaseSettings):
     project_name: str = "Sri Sri Wellbeing Chennai API"
     database_url: str = "mysql+pymysql://root:password@localhost:3306/srisriwellbeing"
-    jwt_secret_key: str = "change-this-secret-key"
+    jwt_secret_key: str = "replace-with-a-long-random-secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     password_reset_expire_minutes: int = 30
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_username: str | None = None
     smtp_password: str | None = None
+    smtp_timeout_seconds: int = 20
+    smtp_local_hostname: str | None = None
     smtp_use_tls: bool = True
     smtp_use_ssl: bool = False
     smtp_from_email: str | None = None
@@ -51,6 +53,10 @@ class Settings(BaseSettings):
             legacy_username = os.getenv("SMTP_USER")
             if legacy_username:
                 self.smtp_username = legacy_username
+        if not self.smtp_password:
+            legacy_password = os.getenv("SMTP_PASS") or os.getenv("SMTP_SECRET")
+            if legacy_password:
+                self.smtp_password = legacy_password
 
         # Port 465 usually expects implicit SSL instead of STARTTLS.
         if self.smtp_port == 465 and not self.smtp_use_ssl:

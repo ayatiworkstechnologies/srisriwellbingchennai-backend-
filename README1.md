@@ -58,7 +58,7 @@ Open `.env` and update values if needed. Example:
 
 ```env
 DATABASE_URL=mysql+pymysql://root:yourpassword@localhost:3306/srisriwellbeing
-JWT_SECRET_KEY=change-this-secret-key
+JWT_SECRET_KEY=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ADMIN_EMAIL=admin@srisriwellbeingchennai.com

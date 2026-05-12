@@ -1,6 +1,7 @@
 from email.message import EmailMessage
 from email.utils import formatdate, make_msgid
 from html import escape
+import logging
 import smtplib
 
 from fastapi import HTTPException, status
@@ -8,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from ..config import get_settings
 from ..models import AdminUser, BookingEmailLog, EmailNotificationSettings, Inquiry, TherapyBooking
+
+logger = logging.getLogger(__name__)
 
 
 def _require_mail_settings():
@@ -42,6 +45,35 @@ def _email_domain(email_address: str | None) -> str | None:
     if not email_address or "@" not in email_address:
         return None
     return email_address.rsplit("@", 1)[1].strip().lower() or None
+
+
+def _decode_smtp_message(message: bytes | str | object) -> str:
+    if isinstance(message, bytes):
+        return message.decode("utf-8", errors="replace")
+    return str(message)
+
+
+def _format_recipient_errors(recipients: dict[str, tuple[int, bytes | str]]) -> str:
+    return "; ".join(
+        f"{email}: {code} {_decode_smtp_message(response)}"
+        for email, (code, response) in recipients.items()
+    )
+
+
+def _format_smtp_exception(exc: Exception) -> str:
+    if isinstance(exc, smtplib.SMTPRecipientsRefused):
+        return (
+            "SMTP login succeeded, but the mail server refused all recipients. "
+            f"Recipient errors: {_format_recipient_errors(exc.recipients)}"
+        )
+    if isinstance(exc, smtplib.SMTPSenderRefused):
+        return (
+            "SMTP login succeeded, but the mail server refused the sender address "
+            f"{exc.sender}: {exc.smtp_code} {_decode_smtp_message(exc.smtp_error)}"
+        )
+    if isinstance(exc, smtplib.SMTPResponseException):
+        return f"SMTP server error {exc.smtp_code}: {_decode_smtp_message(exc.smtp_error)}"
+    return str(exc)
 
 
 def send_email(
@@ -84,16 +116,21 @@ def send_email(
 
     try:
         smtp_client = smtplib.SMTP_SSL if settings.smtp_use_ssl else smtplib.SMTP
-        with smtp_client(settings.smtp_host, settings.smtp_port, timeout=20) as server:
+        client_kwargs = {"timeout": settings.smtp_timeout_seconds}
+        if settings.smtp_local_hostname:
+            client_kwargs["local_hostname"] = settings.smtp_local_hostname
+        with smtp_client(settings.smtp_host, settings.smtp_port, **client_kwargs) as server:
             if settings.smtp_use_tls and not settings.smtp_use_ssl:
                 server.starttls()
             if settings.smtp_username and settings.smtp_password:
                 server.login(settings.smtp_username, settings.smtp_password)
             server.send_message(message, to_addrs=to_recipients + cc_recipients + bcc_recipients)
     except Exception as exc:
+        detail = _format_smtp_exception(exc)
+        logger.exception("Unable to send email via SMTP: %s", detail)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Unable to send email: {exc}",
+            detail=f"Unable to send email: {detail}",
         ) from exc
 
 
@@ -116,7 +153,8 @@ def send_email_safe(
             bcc=bcc,
         )
         return True
-    except HTTPException:
+    except HTTPException as exc:
+        logger.warning("Email send failed and was suppressed: %s", exc.detail)
         return False
 
 
