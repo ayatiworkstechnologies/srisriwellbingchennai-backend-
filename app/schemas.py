@@ -7,6 +7,7 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, EmailStr, Field, field
 InquiryStatus = Literal["new", "contacted", "closed"]
 BookingStatus = Literal["pending", "confirmed", "rescheduled", "completed", "cancelled", "no_show"]
 UserRole = Literal["super_admin", "doctor", "therapist"]
+NadiCampStatus = Literal["active", "done", "inactive"]
 
 
 class InquiryCreate(BaseModel):
@@ -106,8 +107,22 @@ class EmailNotificationSettingsUpdate(BaseModel):
     booking_to_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
     booking_cc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
     booking_bcc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    inquiry_to_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    inquiry_cc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    inquiry_bcc_emails: list[EmailStr] = Field(default_factory=list, max_length=20)
+    inquiry_auto_reply_enabled: bool = True
+    inquiry_auto_reply_subject: str = Field(min_length=3, max_length=255)
+    inquiry_auto_reply_message: str = Field(min_length=10, max_length=5000)
 
-    @field_validator("booking_to_emails", "booking_cc_emails", "booking_bcc_emails", mode="before")
+    @field_validator(
+        "booking_to_emails",
+        "booking_cc_emails",
+        "booking_bcc_emails",
+        "inquiry_to_emails",
+        "inquiry_cc_emails",
+        "inquiry_bcc_emails",
+        mode="before",
+    )
     @classmethod
     def normalize_email_list(cls, value):
         if value is None:
@@ -126,8 +141,34 @@ class EmailNotificationSettingsResponse(BaseModel):
     booking_to_emails: list[EmailStr]
     booking_cc_emails: list[EmailStr] = Field(default_factory=list)
     booking_bcc_emails: list[EmailStr] = Field(default_factory=list)
+    inquiry_to_emails: list[EmailStr] = Field(default_factory=list)
+    inquiry_cc_emails: list[EmailStr] = Field(default_factory=list)
+    inquiry_bcc_emails: list[EmailStr] = Field(default_factory=list)
+    inquiry_auto_reply_enabled: bool
+    inquiry_auto_reply_subject: str
+    inquiry_auto_reply_message: str
     updated_at: datetime
     created_at: datetime
+
+
+class PageMetaSettingBase(BaseModel):
+    page_key: str = Field(min_length=2, max_length=100)
+    page_path: str = Field(min_length=1, max_length=255)
+    title: str = Field(min_length=3, max_length=255)
+    description: str = Field(min_length=10, max_length=5000)
+    is_active: bool = True
+
+
+class PageMetaSettingUpdate(PageMetaSettingBase):
+    pass
+
+
+class PageMetaSettingResponse(PageMetaSettingBase):
+    id: int
+    updated_at: datetime
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AdminLoginRequest(BaseModel):
@@ -173,6 +214,7 @@ class DashboardResponse(BaseModel):
 
 class AdminBootstrapResponse(BaseModel):
     services: list["ServiceResponse"]
+    nadi_camps: list["NadiCampResponse"]
     relaxation_therapies: list["RelaxationTherapyResponse"]
     therapists: list["TherapistResponse"]
     bookings: list["TherapyBookingResponse"]
@@ -215,9 +257,40 @@ class ContentCategoryResponse(BaseModel):
     item_count: int
 
 
+class ManagedContentCategoryBase(BaseModel):
+    slug: str = Field(min_length=2, max_length=50)
+    label: str = Field(min_length=2, max_length=100)
+    description: str = Field(default="", max_length=5000)
+    sort_order: int = Field(default=0, ge=0)
+    is_active: bool = True
+
+    @field_validator("slug", "label", "description", mode="before")
+    @classmethod
+    def strip_category_text(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+
+class ManagedContentCategoryCreate(ManagedContentCategoryBase):
+    pass
+
+
+class ManagedContentCategoryUpdate(ManagedContentCategoryBase):
+    pass
+
+
+class ManagedContentCategoryRecord(ManagedContentCategoryBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ServiceBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    category: str = Field(default="main", min_length=2, max_length=50)
     title: str = Field(min_length=2, max_length=255)
     short_description: str | None = Field(
         default=None,
@@ -230,7 +303,7 @@ class ServiceBase(BaseModel):
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
 
-    @field_validator("title", "short_description", "description", "image", mode="before")
+    @field_validator("category", "title", "short_description", "description", "image", mode="before")
     @classmethod
     def strip_service_text(cls, value):
         if isinstance(value, str):
@@ -302,6 +375,7 @@ class NadiCampBase(BaseModel):
     location: str = Field(min_length=2, max_length=255)
     contact: str = Field(min_length=2, max_length=255)
     address: str = Field(min_length=5, max_length=5000)
+    status: NadiCampStatus = "active"
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
 
@@ -324,6 +398,7 @@ class NadiCampResponse(NadiCampBase):
 class RelaxationTherapyBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
+    category: str = Field(default="relax", min_length=2, max_length=50)
     title: str = Field(min_length=2, max_length=255)
     duration: str = Field(min_length=2, max_length=50)
     short_description: str | None = Field(
@@ -337,7 +412,7 @@ class RelaxationTherapyBase(BaseModel):
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
 
-    @field_validator("title", "duration", "short_description", "details", "image", mode="before")
+    @field_validator("category", "title", "duration", "short_description", "details", "image", mode="before")
     @classmethod
     def strip_required_text(cls, value):
         if isinstance(value, str):

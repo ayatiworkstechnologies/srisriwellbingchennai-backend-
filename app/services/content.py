@@ -6,7 +6,9 @@ from ..legacy import is_active_flag
 from ..models import (
     AdminUser,
     AlternativeTreatment,
+    ContentCategory,
     NadiCamp,
+    PageMetaSetting,
     PanchakarmaCoreTherapy,
     PanchakarmaOtherTreatment,
     RelaxationTherapy,
@@ -16,7 +18,9 @@ from ..models import (
 from ..schemas import (
     AdminUserResponse,
     AlternativeTreatmentResponse,
+    ManagedContentCategoryRecord,
     NadiCampResponse,
+    PageMetaSettingResponse,
     PanchakarmaCoreTherapyResponse,
     PanchakarmaOtherTreatmentResponse,
     RelaxationTherapyResponse,
@@ -72,10 +76,12 @@ def seed_admin_user() -> None:
 def seed_default_content() -> None:
     db = SessionLocal()
     try:
+        _seed_content_categories(db)
         _seed_services(db)
         _seed_testimonials(db)
         _seed_nadi_camps(db)
         _seed_relaxation_therapies(db)
+        _seed_page_meta_settings(db)
         db.commit()
     finally:
         db.close()
@@ -87,10 +93,23 @@ def _seed_services(db: Session) -> None:
 
     db.add_all(
         [
-            Service(title="Nadi Pariksha", short_description="A non-invasive Ayurvedic pulse diagnosis that reveals dosha imbalances and guides personalised care.", description="A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.", benefits=join_lines(["Identifies dosha imbalances", "Supports personalised wellness plans", "Non-invasive and gentle consultation"]), image="/images/ser-1.jpg", sort_order=1),
-            Service(title="Panchakarma Rituals", short_description="A deeply restorative detox and cleansing programme for body, mind, and vitality.", description="A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.", benefits=join_lines(["Deep detoxification support", "Restores internal balance", "Enhances energy and clarity"]), image="/images/ser-2.jpg", sort_order=2),
-            Service(title="Marma Therapy", short_description="A focused Ayurvedic therapy that activates vital energy points for healing and calm.", description="An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.", benefits=join_lines(["Improves energy flow", "Supports stress relief", "Encourages holistic healing"]), image="/images/ser-3.jpg", sort_order=3),
-            Service(title="Osteopathic Therapy", short_description="A manual therapy approach that supports alignment, mobility, and structural wellbeing.", description="A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.", benefits=join_lines(["Supports better mobility", "Helps manage pain", "Improves structural balance"]), image="/images/ser-4.jpg", sort_order=4),
+            Service(category="main", title="Nadi Pariksha", short_description="A non-invasive Ayurvedic pulse diagnosis that reveals dosha imbalances and guides personalised care.", description="A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.", benefits=join_lines(["Identifies dosha imbalances", "Supports personalised wellness plans", "Non-invasive and gentle consultation"]), image="/images/ser-1.jpg", sort_order=1),
+            Service(category="panchakarma", title="Panchakarma Rituals", short_description="A deeply restorative detox and cleansing programme for body, mind, and vitality.", description="A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.", benefits=join_lines(["Deep detoxification support", "Restores internal balance", "Enhances energy and clarity"]), image="/images/ser-2.jpg", sort_order=2),
+            Service(category="main", title="Marma Therapy", short_description="A focused Ayurvedic therapy that activates vital energy points for healing and calm.", description="An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.", benefits=join_lines(["Improves energy flow", "Supports stress relief", "Encourages holistic healing"]), image="/images/ser-3.jpg", sort_order=3),
+            Service(category="main", title="Osteopathic Therapy", short_description="A manual therapy approach that supports alignment, mobility, and structural wellbeing.", description="A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.", benefits=join_lines(["Supports better mobility", "Helps manage pain", "Improves structural balance"]), image="/images/ser-4.jpg", sort_order=4),
+        ]
+    )
+
+
+def _seed_content_categories(db: Session) -> None:
+    if db.query(ContentCategory).first():
+        return
+
+    db.add_all(
+        [
+            ContentCategory(slug="main", label="Main", description="Homepage and main therapy/service content.", sort_order=1),
+            ContentCategory(slug="relax", label="Relax", description="Relaxation therapy and renewal content.", sort_order=2),
+            ContentCategory(slug="panchakarma", label="Panchakarma", description="Panchakarma and detox-related content.", sort_order=3),
         ]
     )
 
@@ -113,8 +132,8 @@ def _seed_nadi_camps(db: Session) -> None:
 
     db.add_all(
         [
-            NadiCamp(doctor="Dr. K Aravindhan", camp_date="20/05/2026", location="Chennai, Tamil Nadu", contact="Manickam M (9444004975)", address="Gurukripa Agencies, No : 16, Aadhi Street, Villivakkam", sort_order=1),
-            NadiCamp(doctor="Dr. Priya Narayanan", camp_date="28/05/2026", location="Coimbatore, Tamil Nadu", contact="Sathish K (9876543210)", address="No. 24, Wellness Avenue, RS Puram, Coimbatore", sort_order=2),
+            NadiCamp(doctor="Dr. K Aravindhan", camp_date="20/05/2026", location="Chennai, Tamil Nadu", contact="Manickam M (9444004975)", address="Gurukripa Agencies, No : 16, Aadhi Street, Villivakkam", status="active", sort_order=1),
+            NadiCamp(doctor="Dr. Priya Narayanan", camp_date="28/05/2026", location="Coimbatore, Tamil Nadu", contact="Sathish K (9876543210)", address="No. 24, Wellness Avenue, RS Puram, Coimbatore", status="active", sort_order=2),
         ]
     )
 
@@ -125,8 +144,28 @@ def _seed_relaxation_therapies(db: Session) -> None:
 
     db.add_all(
         [
-            RelaxationTherapy(title="Abhyanga", duration="45 mins", short_description="An Ayurvedic procedure involving warm medicated oil and gentle massage for relaxation.", details="Abhyanga is a traditional Ayurvedic full-body oil massage using warm herbal oils. It helps relax the body, improve blood circulation, nourish the skin, reduce fatigue, and calm the nervous system.", benefits=join_lines(["Relieves stress and tiredness", "Improves blood circulation", "Nourishes skin and body tissues", "Supports better sleep", "Helps relax muscles"]), image="/images/1446.jpg", sort_order=1),
-            RelaxationTherapy(title="Shirodhara", duration="45 mins", short_description="A signature Ayurvedic therapy where warm oil is poured continuously over the forehead.", details="Shirodhara is a deeply calming therapy where warm medicated oil flows gently over the forehead. It is commonly used for stress relief, mental relaxation, sleep support, and emotional balance.", benefits=join_lines(["Calms the mind", "Reduces stress and anxiety", "Promotes better sleep", "Supports mental clarity", "Deep relaxation"]), image="/images/1446.jpg", sort_order=2),
+            RelaxationTherapy(category="relax", title="Abhyanga", duration="45 mins", short_description="An Ayurvedic procedure involving warm medicated oil and gentle massage for relaxation.", details="Abhyanga is a traditional Ayurvedic full-body oil massage using warm herbal oils. It helps relax the body, improve blood circulation, nourish the skin, reduce fatigue, and calm the nervous system.", benefits=join_lines(["Relieves stress and tiredness", "Improves blood circulation", "Nourishes skin and body tissues", "Supports better sleep", "Helps relax muscles"]), image="/images/1446.jpg", sort_order=1),
+            RelaxationTherapy(category="relax", title="Shirodhara", duration="45 mins", short_description="A signature Ayurvedic therapy where warm oil is poured continuously over the forehead.", details="Shirodhara is a deeply calming therapy where warm medicated oil flows gently over the forehead. It is commonly used for stress relief, mental relaxation, sleep support, and emotional balance.", benefits=join_lines(["Calms the mind", "Reduces stress and anxiety", "Promotes better sleep", "Supports mental clarity", "Deep relaxation"]), image="/images/1446.jpg", sort_order=2),
+        ]
+    )
+
+
+def _seed_page_meta_settings(db: Session) -> None:
+    if db.query(PageMetaSetting).first():
+        return
+
+    db.add_all(
+        [
+            PageMetaSetting(page_key="home", page_path="/", title="Sri Sri Wellbeing Chennai | Ayurveda, Panchakarma & Relaxation", description="Discover natural healing at Sri Sri Wellbeing Chennai with Ayurvedic treatments, Panchakarma therapies, relaxation rituals, and personalised wellness care."),
+            PageMetaSetting(page_key="about", page_path="/about-us", title="About Sri Sri Wellbeing Chennai", description="Learn about Sri Sri Wellbeing Chennai, our Ayurvedic approach, wellness philosophy, and personalised healing experience."),
+            PageMetaSetting(page_key="relax", page_path="/relaxationtherapy", title="Relaxation Therapy | Sri Sri Wellbeing Chennai", description="Explore Ayurvedic relaxation therapies, renewal rituals, and restorative wellbeing experiences at Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="facilities", page_path="/facilities", title="Facilities | Sri Sri Wellbeing Chennai", description="Explore the facilities, stay options, therapy spaces, and wellness environment at Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="products", page_path="/products", title="Products | Sri Sri Wellbeing Chennai", description="Browse wellness products and supportive Ayurvedic offerings from Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="contact", page_path="/contact", title="Contact Sri Sri Wellbeing Chennai", description="Reach Sri Sri Wellbeing Chennai for Ayurveda treatments, Panchakarma therapies, wellness appointments, and enquiries."),
+            PageMetaSetting(page_key="nadi-pariksha", page_path="/heal/nadi-pariksha", title="Nadi Pariksha | Sri Sri Wellbeing Chennai", description="Book Nadi Pariksha consultations and upcoming camps with expert Ayurvedic guidance at Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="panchakarma", page_path="/heal/panchakarma", title="Panchakarma | Sri Sri Wellbeing Chennai", description="Discover Panchakarma detox, cleansing therapies, and Ayurvedic renewal programmes at Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="alternative-treatments", page_path="/heal/alternativetreatments", title="Alternative Treatments | Sri Sri Wellbeing Chennai", description="Explore complementary Ayurvedic and holistic treatments offered at Sri Sri Wellbeing Chennai."),
+            PageMetaSetting(page_key="netra-tejas", page_path="/heal/netratejas", title="Netra Tejas | Sri Sri Wellbeing Chennai", description="Learn about Netra Tejas and supportive eye-focused wellness therapies at Sri Sri Wellbeing Chennai."),
         ]
     )
 
@@ -134,6 +173,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
 def as_service(item: Service) -> ServiceResponse:
     return ServiceResponse(
         id=item.id,
+        category=item.category,
         title=item.title,
         short_description=item.short_description,
         description=item.description,
@@ -164,6 +204,19 @@ def as_nadi_camp(item: NadiCamp) -> NadiCampResponse:
         location=item.location,
         contact=item.contact,
         address=item.address,
+        status=item.status,
+        sort_order=item.sort_order,
+        is_active=is_active_flag(item.is_active),
+        created_at=item.created_at,
+    )
+
+
+def as_managed_content_category(item: ContentCategory) -> ManagedContentCategoryRecord:
+    return ManagedContentCategoryRecord(
+        id=item.id,
+        slug=item.slug,
+        label=item.label,
+        description=item.description,
         sort_order=item.sort_order,
         is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
@@ -173,6 +226,7 @@ def as_nadi_camp(item: NadiCamp) -> NadiCampResponse:
 def as_relax(item: RelaxationTherapy) -> RelaxationTherapyResponse:
     return RelaxationTherapyResponse(
         id=item.id,
+        category=item.category,
         title=item.title,
         duration=item.duration,
         short_description=item.short_description,
@@ -237,5 +291,18 @@ def as_admin_user(item: AdminUser) -> AdminUserResponse:
         role=item.role,
         therapist_id=item.therapist_id,
         is_active=is_active_flag(item.is_active),
+        created_at=item.created_at,
+    )
+
+
+def as_page_meta_setting(item: PageMetaSetting) -> PageMetaSettingResponse:
+    return PageMetaSettingResponse(
+        id=item.id,
+        page_key=item.page_key,
+        page_path=item.page_path,
+        title=item.title,
+        description=item.description,
+        is_active=is_active_flag(item.is_active),
+        updated_at=item.updated_at,
         created_at=item.created_at,
     )

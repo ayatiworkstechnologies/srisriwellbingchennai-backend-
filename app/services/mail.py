@@ -3,14 +3,24 @@ from email.utils import formatdate, make_msgid
 from html import escape
 import logging
 import smtplib
+from types import SimpleNamespace
 
 from fastapi import HTTPException, status
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
+from ..legacy import ACTIVE_FLAG_TRUE, to_active_flag
 from ..models import AdminUser, BookingEmailLog, EmailNotificationSettings, Inquiry, TherapyBooking
 
 logger = logging.getLogger(__name__)
+
+
+def _email_settings_table_columns(db: Session) -> set[str]:
+    return {
+        column["name"]
+        for column in inspect(db.bind).get_columns("email_notification_settings")
+    }
 
 
 def _require_mail_settings():
@@ -730,15 +740,53 @@ def split_stored_emails(value: str | None) -> list[str]:
 
 
 def get_email_notification_settings(db: Session) -> EmailNotificationSettings:
-    settings_row = db.query(EmailNotificationSettings).order_by(EmailNotificationSettings.id.asc()).first()
-    if settings_row:
-        return settings_row
+    available_columns = _email_settings_table_columns(db)
+    has_inquiry_columns = "inquiry_to_emails" in available_columns
+
+    if has_inquiry_columns:
+        settings_row = db.query(EmailNotificationSettings).order_by(EmailNotificationSettings.id.asc()).first()
+        if settings_row:
+            return settings_row
+    else:
+        row = db.execute(
+            text(
+                "SELECT id, booking_to_emails, booking_cc_emails, booking_bcc_emails, updated_at, created_at "
+                "FROM email_notification_settings ORDER BY id ASC LIMIT 1"
+            )
+        ).mappings().first()
+        if row:
+            return SimpleNamespace(
+                id=row["id"],
+                booking_to_emails=row["booking_to_emails"] or "",
+                booking_cc_emails=row["booking_cc_emails"] or "",
+                booking_bcc_emails=row["booking_bcc_emails"] or "",
+                inquiry_to_emails=row["booking_to_emails"] or "",
+                inquiry_cc_emails="",
+                inquiry_bcc_emails="",
+                inquiry_auto_reply_enabled="true",
+                inquiry_auto_reply_subject="Thank you for contacting Sri Sri Wellbeing Chennai",
+                inquiry_auto_reply_message=(
+                    "Thank you for reaching Sri Sri Wellbeing Chennai. "
+                    "We have received your enquiry and our team will connect with you within the next 48 hours."
+                ),
+                updated_at=row["updated_at"],
+                created_at=row["created_at"],
+            )
 
     settings_row = EmailNotificationSettings(
         id=1,
         booking_to_emails=_join_emails(get_admin_notification_emails()),
         booking_cc_emails="",
         booking_bcc_emails="",
+        inquiry_to_emails=_join_emails(get_admin_notification_emails()),
+        inquiry_cc_emails="",
+        inquiry_bcc_emails="",
+        inquiry_auto_reply_enabled="true",
+        inquiry_auto_reply_subject="Thank you for contacting Sri Sri Wellbeing Chennai",
+        inquiry_auto_reply_message=(
+            "Thank you for reaching Sri Sri Wellbeing Chennai. "
+            "We have received your enquiry and our team will connect with you within the next 48 hours."
+        ),
     )
     db.add(settings_row)
     db.commit()
@@ -752,6 +800,12 @@ def serialize_email_notification_settings(settings_row: EmailNotificationSetting
         "booking_to_emails": split_stored_emails(settings_row.booking_to_emails),
         "booking_cc_emails": split_stored_emails(settings_row.booking_cc_emails),
         "booking_bcc_emails": split_stored_emails(settings_row.booking_bcc_emails),
+        "inquiry_to_emails": split_stored_emails(settings_row.inquiry_to_emails),
+        "inquiry_cc_emails": split_stored_emails(settings_row.inquiry_cc_emails),
+        "inquiry_bcc_emails": split_stored_emails(settings_row.inquiry_bcc_emails),
+        "inquiry_auto_reply_enabled": settings_row.inquiry_auto_reply_enabled == ACTIVE_FLAG_TRUE,
+        "inquiry_auto_reply_subject": settings_row.inquiry_auto_reply_subject,
+        "inquiry_auto_reply_message": settings_row.inquiry_auto_reply_message,
         "updated_at": settings_row.updated_at,
         "created_at": settings_row.created_at,
     }
@@ -763,14 +817,47 @@ def update_email_notification_settings(
     booking_to_emails: list[str],
     booking_cc_emails: list[str],
     booking_bcc_emails: list[str],
+    inquiry_to_emails: list[str],
+    inquiry_cc_emails: list[str],
+    inquiry_bcc_emails: list[str],
+    inquiry_auto_reply_enabled: bool,
+    inquiry_auto_reply_subject: str,
+    inquiry_auto_reply_message: str,
 ) -> EmailNotificationSettings:
     settings_row = get_email_notification_settings(db)
-    settings_row.booking_to_emails = _join_emails(booking_to_emails)
-    settings_row.booking_cc_emails = _join_emails(booking_cc_emails)
-    settings_row.booking_bcc_emails = _join_emails(booking_bcc_emails)
+    available_columns = _email_settings_table_columns(db)
+
+    if "inquiry_to_emails" in available_columns:
+        settings_row.booking_to_emails = _join_emails(booking_to_emails)
+        settings_row.booking_cc_emails = _join_emails(booking_cc_emails)
+        settings_row.booking_bcc_emails = _join_emails(booking_bcc_emails)
+        settings_row.inquiry_to_emails = _join_emails(inquiry_to_emails)
+        settings_row.inquiry_cc_emails = _join_emails(inquiry_cc_emails)
+        settings_row.inquiry_bcc_emails = _join_emails(inquiry_bcc_emails)
+        settings_row.inquiry_auto_reply_enabled = to_active_flag(inquiry_auto_reply_enabled)
+        settings_row.inquiry_auto_reply_subject = inquiry_auto_reply_subject.strip()
+        settings_row.inquiry_auto_reply_message = inquiry_auto_reply_message.strip()
+        db.commit()
+        db.refresh(settings_row)
+        return settings_row
+
+    db.execute(
+        text(
+            "UPDATE email_notification_settings "
+            "SET booking_to_emails = :booking_to_emails, "
+            "booking_cc_emails = :booking_cc_emails, "
+            "booking_bcc_emails = :booking_bcc_emails "
+            "WHERE id = :row_id"
+        ),
+        {
+            "booking_to_emails": _join_emails(booking_to_emails),
+            "booking_cc_emails": _join_emails(booking_cc_emails),
+            "booking_bcc_emails": _join_emails(booking_bcc_emails),
+            "row_id": settings_row.id,
+        },
+    )
     db.commit()
-    db.refresh(settings_row)
-    return settings_row
+    return get_email_notification_settings(db)
 
 
 def get_booking_notification_recipients(db: Session) -> dict[str, list[str]]:
@@ -783,6 +870,68 @@ def get_booking_notification_recipients(db: Session) -> dict[str, list[str]]:
         "cc": split_stored_emails(settings_row.booking_cc_emails),
         "bcc": split_stored_emails(settings_row.booking_bcc_emails),
     }
+
+
+def get_inquiry_notification_settings(db: Session) -> dict[str, object]:
+    settings_row = get_email_notification_settings(db)
+    to_emails = split_stored_emails(settings_row.inquiry_to_emails)
+    if not to_emails:
+        to_emails = get_admin_notification_emails()
+    return {
+        "to": to_emails,
+        "cc": split_stored_emails(settings_row.inquiry_cc_emails),
+        "bcc": split_stored_emails(settings_row.inquiry_bcc_emails),
+        "auto_reply_enabled": settings_row.inquiry_auto_reply_enabled == ACTIVE_FLAG_TRUE,
+        "auto_reply_subject": settings_row.inquiry_auto_reply_subject,
+        "auto_reply_message": settings_row.inquiry_auto_reply_message,
+    }
+
+
+def build_inquiry_auto_reply_email(inquiry: Inquiry, subject: str, message: str):
+    safe_subject = subject.strip()
+    safe_message = message.strip()
+    html = f"""
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background:#f5f2ec;font-family:Arial,sans-serif;color:#1f1a17;">
+    <div style="padding:32px 16px;">
+      <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 16px 50px rgba(59,34,24,0.12);">
+        <div style="background:#3b2218;padding:24px 32px;">
+          <div style="font-size:22px;font-weight:800;color:#ffffff;">Sri Sri Wellbeing Chennai</div>
+          <div style="margin-top:8px;color:#e5cc82;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;">Enquiry Received</div>
+        </div>
+        <div style="padding:36px 32px;">
+          <h1 style="margin:0;font-size:28px;line-height:1.25;color:#1f1a17;">{escape(safe_subject)}</h1>
+          <p style="margin:18px 0 0;color:#564d47;font-size:16px;line-height:1.8;">Dear {escape(inquiry.name)},</p>
+          <p style="margin:12px 0 0;color:#564d47;font-size:16px;line-height:1.8;">{escape(safe_message).replace(chr(10), "<br/>")}</p>
+          <div style="margin-top:26px;border:1px solid #eadfce;border-radius:20px;background:#fcfaf6;padding:22px;">
+            <div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#9b8b7e;font-weight:700;">Your Enquiry</div>
+            <ul style="margin:14px 0 0;padding-left:18px;color:#3f352f;font-size:14px;line-height:1.8;">
+              <li><strong>Topic:</strong> {escape(inquiry.topic)}</li>
+              <li><strong>Service interest:</strong> {escape(inquiry.service_interest or "General enquiry")}</li>
+              <li><strong>Submitted from:</strong> {escape(inquiry.source or "Website")}</li>
+            </ul>
+          </div>
+          <p style="margin:26px 0 0;color:#6d625c;font-size:14px;line-height:1.8;">
+            Warm regards,<br/>
+            Sri Sri Wellbeing Chennai
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+"""
+    text = (
+        f"Dear {inquiry.name},\n\n"
+        f"{safe_message}\n\n"
+        f"Topic: {inquiry.topic}\n"
+        f"Service interest: {inquiry.service_interest or 'General enquiry'}\n"
+        f"Submitted from: {inquiry.source or 'Website'}\n\n"
+        "Warm regards,\n"
+        "Sri Sri Wellbeing Chennai"
+    )
+    return {"subject": safe_subject, "text": text, "html": html}
 
 
 def send_booking_notifications(

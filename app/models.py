@@ -39,11 +39,24 @@ class Service(Base):
     __tablename__ = "services"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="main", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     short_description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     description: Mapped[str] = mapped_column(Text, nullable=False)
     benefits: Mapped[str] = mapped_column(Text, nullable=False, default="")
     image: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
+    is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class ContentCategory(Base):
+    __tablename__ = "content_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    slug: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -69,6 +82,7 @@ class NadiCamp(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     contact: Mapped[str] = mapped_column(String(255), nullable=False)
     address: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", index=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -78,6 +92,7 @@ class RelaxationTherapy(Base):
     __tablename__ = "relaxation_therapies"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="relax", index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     duration: Mapped[str] = mapped_column(String(50), nullable=False)
     short_description: Mapped[str] = mapped_column(Text, nullable=False)
@@ -236,5 +251,35 @@ class EmailNotificationSettings(Base):
     booking_to_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
     booking_cc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
     booking_bcc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    inquiry_to_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    inquiry_cc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    inquiry_bcc_emails: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    inquiry_auto_reply_enabled: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
+    inquiry_auto_reply_subject: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        default="Thank you for contacting Sri Sri Wellbeing Chennai",
+    )
+    inquiry_auto_reply_message: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=(
+            "Thank you for reaching Sri Sri Wellbeing Chennai. "
+            "We have received your enquiry and our team will connect with you within the next 48 hours."
+        ),
+    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class PageMetaSetting(Base):
+    __tablename__ = "page_meta_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    page_key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    page_path: Mapped[str] = mapped_column(String(255), nullable=False, default="", index=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)

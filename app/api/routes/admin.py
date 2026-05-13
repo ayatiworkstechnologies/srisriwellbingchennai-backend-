@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import func, inspect
 from sqlalchemy.orm import Session
 
 from ..content_helpers import (
@@ -7,6 +7,7 @@ from ..content_helpers import (
     create_entity,
     delete_entity,
     get_entity_or_404,
+    list_active_categories,
     list_entities,
     update_entity,
 )
@@ -16,8 +17,10 @@ from ...models import (
     AlternativeTreatment,
     BookingEmailLog,
     BookingSlot,
+    ContentCategory,
     Inquiry,
     NadiCamp,
+    PageMetaSetting,
     PanchakarmaCoreTherapy,
     PanchakarmaOtherTreatment,
     RelaxationTherapy,
@@ -45,9 +48,13 @@ from ...schemas import (
     BookingEmailLogResponse,
     BookingSlotResponse,
     BookingSlotUpdate,
+    ContentCategoryResponse,
     DashboardResponse,
     EmailNotificationSettingsResponse,
     EmailNotificationSettingsUpdate,
+    ManagedContentCategoryCreate,
+    ManagedContentCategoryRecord,
+    ManagedContentCategoryUpdate,
     InquiryEmailRequest,
     InquiryEmailResponse,
     InquiryResponse,
@@ -55,6 +62,8 @@ from ...schemas import (
     NadiCampCreate,
     NadiCampResponse,
     NadiCampUpdate,
+    PageMetaSettingResponse,
+    PageMetaSettingUpdate,
     PanchakarmaCoreTherapyCreate,
     PanchakarmaCoreTherapyResponse,
     PanchakarmaCoreTherapyUpdate,
@@ -100,6 +109,7 @@ from ...services.mail import (
     build_inquiry_email,
     build_password_reset_email,
     get_email_notification_settings,
+    get_inquiry_notification_settings,
     log_booking_email,
     serialize_email_notification_settings,
     send_email,
@@ -112,7 +122,9 @@ from ...config import get_settings
 from ...services.content import (
     as_admin_user,
     as_alt,
+    as_managed_content_category,
     as_nadi_camp,
+    as_page_meta_setting,
     as_pk_core,
     as_pk_other,
     as_relax,
@@ -125,6 +137,10 @@ from ...legacy import ACTIVE_FLAG_TRUE
 from ...security import get_password_hash
 
 router = APIRouter(prefix="/api/v1/admin")
+
+
+def _table_exists(db: Session, table_name: str) -> bool:
+    return table_name in inspect(db.bind).get_table_names()
 
 
 @router.post("/auth/login", response_model=TokenResponse, tags=["Admin Auth"])
@@ -214,8 +230,39 @@ def update_email_settings(
         booking_to_emails=[str(email) for email in payload.booking_to_emails],
         booking_cc_emails=[str(email) for email in payload.booking_cc_emails],
         booking_bcc_emails=[str(email) for email in payload.booking_bcc_emails],
+        inquiry_to_emails=[str(email) for email in payload.inquiry_to_emails],
+        inquiry_cc_emails=[str(email) for email in payload.inquiry_cc_emails],
+        inquiry_bcc_emails=[str(email) for email in payload.inquiry_bcc_emails],
+        inquiry_auto_reply_enabled=payload.inquiry_auto_reply_enabled,
+        inquiry_auto_reply_subject=payload.inquiry_auto_reply_subject,
+        inquiry_auto_reply_message=payload.inquiry_auto_reply_message,
     )
     return serialize_email_notification_settings(settings_row)
+
+
+@router.get("/settings/page-meta", response_model=list[PageMetaSettingResponse], tags=["Admin Settings"])
+def list_page_meta_settings(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    if not _table_exists(db, "page_meta_settings"):
+        return []
+    items = db.query(PageMetaSetting).order_by(PageMetaSetting.page_path.asc(), PageMetaSetting.id.asc()).all()
+    return [as_page_meta_setting(item) for item in items]
+
+
+@router.put("/settings/page-meta/{page_meta_id}", response_model=PageMetaSettingResponse, tags=["Admin Settings"])
+def update_page_meta_setting(
+    page_meta_id: int,
+    payload: PageMetaSettingUpdate,
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
+    if not _table_exists(db, "page_meta_settings"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Page meta settings table is not available yet. Run the latest backend migration on this environment.",
+        )
+    item = get_entity_or_404(PageMetaSetting, page_meta_id, "Page meta setting", db)
+    item = update_entity(item, payload, db, is_active=as_active_flag(payload.is_active))
+    return as_page_meta_setting(item)
 
 
 @router.get("/bootstrap", response_model=AdminBootstrapResponse, tags=["Admin Dashboard"])
@@ -235,6 +282,7 @@ def admin_bootstrap(
         if not current_admin.therapist_id:
             return AdminBootstrapResponse(
                 services=[],
+                nadi_camps=[],
                 relaxation_therapies=[],
                 therapists=[],
                 bookings=[],
@@ -243,6 +291,7 @@ def admin_bootstrap(
 
     return AdminBootstrapResponse(
         services=[] if current_admin.role != "super_admin" else [as_service(item) for item in list_entities(Service, db)],
+        nadi_camps=[] if current_admin.role != "super_admin" else [as_nadi_camp(item) for item in list_entities(NadiCamp, db)],
         relaxation_therapies=[] if current_admin.role != "super_admin" else [as_relax(item) for item in list_entities(RelaxationTherapy, db)],
         therapists=[] if current_admin.role != "super_admin" else [
             serialize_therapist(item)
@@ -393,11 +442,12 @@ def send_inquiry_email(
     db: Session = Depends(get_db),
 ):
     item = get_entity_or_404(Inquiry, inquiry_id, "Inquiry", db)
+    inquiry_settings = get_inquiry_notification_settings(db)
     email_payload = build_inquiry_email(item, payload.subject, payload.message)
     send_email(
         to_email=[str(email) for email in payload.to],
-        cc=[str(email) for email in payload.cc],
-        bcc=[str(email) for email in payload.bcc],
+        cc=[str(email) for email in payload.cc] or inquiry_settings["cc"],
+        bcc=[str(email) for email in payload.bcc] or inquiry_settings["bcc"],
         subject=email_payload["subject"],
         html_body=email_payload["html"],
         text_body=email_payload["text"],
@@ -426,9 +476,58 @@ def delete_inquiry(
 
 @router.get("/content/services", response_model=list[ServiceResponse], tags=["Admin Content"])
 @router.get("/services", response_model=list[ServiceResponse], include_in_schema=False)
-def list_admin_services(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+def list_admin_services(
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+    category: str | None = Query(default=None, min_length=2),
+):
     items = list_entities(Service, db)
+    if category:
+        items = [item for item in items if item.category.strip().lower() == category.strip().lower()]
     return [as_service(item) for item in items]
+
+
+@router.get("/content/service-categories", response_model=list[ContentCategoryResponse], tags=["Admin Content"])
+def list_admin_service_categories(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    return [ContentCategoryResponse(category=category, item_count=item_count) for category, item_count in list_active_categories(Service, db)]
+
+
+@router.get("/content/categories", response_model=list[ManagedContentCategoryRecord], tags=["Admin Content"])
+@router.get("/categories", response_model=list[ManagedContentCategoryRecord], include_in_schema=False)
+def list_admin_managed_categories(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    items = list_entities(ContentCategory, db)
+    return [as_managed_content_category(item) for item in items]
+
+
+@router.post("/content/categories", response_model=ManagedContentCategoryRecord, status_code=status.HTTP_201_CREATED, tags=["Admin Content"])
+@router.post("/categories", response_model=ManagedContentCategoryRecord, status_code=status.HTTP_201_CREATED, include_in_schema=False)
+def create_managed_category(payload: ManagedContentCategoryCreate, _: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    existing = db.query(ContentCategory).filter(func.lower(ContentCategory.slug) == payload.slug.strip().lower()).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Category slug already exists")
+    item = create_entity(ContentCategory, payload, db, slug=payload.slug.strip().lower(), is_active=as_active_flag(payload.is_active))
+    return as_managed_content_category(item)
+
+
+@router.put("/content/categories/{entity_id}", response_model=ManagedContentCategoryRecord, tags=["Admin Content"])
+@router.put("/categories/{entity_id}", response_model=ManagedContentCategoryRecord, include_in_schema=False)
+def update_managed_category(entity_id: int, payload: ManagedContentCategoryUpdate, _: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    item = get_entity_or_404(ContentCategory, entity_id, "Category", db)
+    existing = (
+        db.query(ContentCategory)
+        .filter(func.lower(ContentCategory.slug) == payload.slug.strip().lower(), ContentCategory.id != entity_id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Category slug already exists")
+    item = update_entity(item, payload, db, slug=payload.slug.strip().lower(), is_active=as_active_flag(payload.is_active))
+    return as_managed_content_category(item)
+
+
+@router.delete("/content/categories/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Admin Content"])
+@router.delete("/categories/{entity_id}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+def delete_managed_category(entity_id: int, _: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    return delete_entity(ContentCategory, entity_id, "Category", db)
 
 
 @router.get("/content/services/{entity_id}", response_model=ServiceResponse, tags=["Admin Content"])
@@ -542,9 +641,20 @@ def delete_nadi_camp(entity_id: int, _: AdminUser = Depends(get_current_super_ad
 
 @router.get("/content/relaxation-therapies", response_model=list[RelaxationTherapyResponse], tags=["Admin Content"])
 @router.get("/relaxation-therapies", response_model=list[RelaxationTherapyResponse], include_in_schema=False)
-def list_admin_relaxation_therapies(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+def list_admin_relaxation_therapies(
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+    category: str | None = Query(default=None, min_length=2),
+):
     items = list_entities(RelaxationTherapy, db)
+    if category:
+        items = [item for item in items if item.category.strip().lower() == category.strip().lower()]
     return [as_relax(item) for item in items]
+
+
+@router.get("/content/relaxation-therapy-categories", response_model=list[ContentCategoryResponse], tags=["Admin Content"])
+def list_admin_relaxation_therapy_categories(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+    return [ContentCategoryResponse(category=category, item_count=item_count) for category, item_count in list_active_categories(RelaxationTherapy, db)]
 
 
 @router.get("/content/relaxation-therapies/{entity_id}", response_model=RelaxationTherapyResponse, tags=["Admin Content"])
