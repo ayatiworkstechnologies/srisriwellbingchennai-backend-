@@ -73,11 +73,11 @@ from ...services.content import (
     as_testimonial,
 )
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api")
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
-    return table_name in inspect(db.bind).get_table_names()
+    return table_name in inspect(db.connection()).get_table_names()
 
 
 @router.post("/contact/inquiries", response_model=InquiryResponse, status_code=status.HTTP_201_CREATED, tags=["Public Contact"])

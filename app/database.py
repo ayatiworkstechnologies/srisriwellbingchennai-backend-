@@ -5,16 +5,15 @@ from .config import get_settings
 
 settings = get_settings()
 
-# Keep the pool intentionally small because the current MySQL user has a very low
-# connection limit. This prevents bursts from the frontend admin from exhausting
-# the database before connections can be reused.
+# Clever Cloud limits this MySQL user to 5 total connections. Keep this
+# process well below that cap so restarts and admin bursts do not lock out startup.
 engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
-    pool_size=2,
-    max_overflow=0,
+    pool_size=1,
+    max_overflow=1,
     pool_recycle=1800,
-    pool_timeout=30,
+    pool_timeout=15,
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

@@ -1,8 +1,10 @@
 from contextlib import asynccontextmanager
 import logging
+from time import sleep
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 
 from .api.metadata import API_DESCRIPTION, OPENAPI_TAGS
@@ -15,12 +17,28 @@ settings = get_settings()
 logger = logging.getLogger("srisriwellbeing.api")
 
 
+def wait_for_database(max_attempts: int = 6, delay_seconds: int = 5) -> None:
+    for attempt in range(1, max_attempts + 1):
+        try:
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+            return
+        except OperationalError:
+            if attempt == max_attempts:
+                raise
+            logger.warning(
+                "Database connection unavailable on startup; retrying in %s seconds (%s/%s).",
+                delay_seconds,
+                attempt,
+                max_attempts,
+            )
+            sleep(delay_seconds)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-
+        wait_for_database()
         seed_admin_user()
         if settings.seed_default_content:
             seed_default_content()
@@ -30,7 +48,10 @@ async def lifespan(_: FastAPI):
             "Application startup failed. Check DATABASE_URL and other environment variables."
         )
         raise
-    yield
+    try:
+        yield
+    finally:
+        engine.dispose()
 
 
 app = FastAPI(

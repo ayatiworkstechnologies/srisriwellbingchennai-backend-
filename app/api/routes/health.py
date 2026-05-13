@@ -4,7 +4,7 @@ from pydantic import EmailStr
 from ...schemas import HealthResponse
 from ...services.mail import send_email
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 
 @router.get("/health", response_model=HealthResponse, tags=["Health"], summary="Health check")

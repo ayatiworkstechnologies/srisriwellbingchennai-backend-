@@ -127,52 +127,52 @@ This script also clears any `therapist_id` links from admin users so the saved l
 
 ### Health
 
-- `GET /health`
+- `GET /api/health`
 
 ### Public APIs
 
-- `POST /api/v1/inquiries`
-- `POST /api/v1/contact/leads`
-- `GET /api/v1/public/services`
-- `GET /api/v1/public/testimonials`
-- `GET /api/v1/public/nadi-camps`
-- `GET /api/v1/public/relaxation-therapies`
-- `GET /api/v1/public/alternative-treatments`
-- `GET /api/v1/public/panchakarma-core-therapies`
-- `GET /api/v1/public/panchakarma-other-treatments`
-- `GET /api/v1/public/booking-slots`
-- `GET /api/v1/public/therapy-availability`
-- `POST /api/v1/public/bookings`
-- `POST /api/v1/public/bookings/cancel`
+- `POST /api/inquiries`
+- `POST /api/contact/leads`
+- `GET /api/public/services`
+- `GET /api/public/testimonials`
+- `GET /api/public/nadi-camps`
+- `GET /api/public/relaxation-therapies`
+- `GET /api/public/alternative-treatments`
+- `GET /api/public/panchakarma-core-therapies`
+- `GET /api/public/panchakarma-other-treatments`
+- `GET /api/public/booking-slots`
+- `GET /api/public/therapy-availability`
+- `POST /api/public/bookings`
+- `POST /api/public/bookings/cancel`
 
 ### Admin APIs
 
-- `POST /api/v1/admin/login`
-- `POST /api/v1/admin/forgot-password`
-- `POST /api/v1/admin/reset-password`
-- `GET /api/v1/admin/dashboard`
-- `GET /api/v1/admin/inquiries`
-- `PATCH /api/v1/admin/inquiries/{inquiry_id}`
-- `GET|POST|PUT|DELETE /api/v1/admin/services`
-- `GET|POST|PUT|DELETE /api/v1/admin/testimonials`
-- `GET|POST|PUT|DELETE /api/v1/admin/nadi-camps`
-- `GET|POST|PUT|DELETE /api/v1/admin/relaxation-therapies`
-- `GET|POST|PUT|DELETE /api/v1/admin/alternative-treatments`
-- `GET|POST|PUT|DELETE /api/v1/admin/panchakarma-core-therapies`
-- `GET|POST|PUT|DELETE /api/v1/admin/panchakarma-other-treatments`
-- `GET|POST|PUT|DELETE /api/v1/admin/booking-slots`
-- `GET /api/v1/admin/bookings`
-- `PATCH /api/v1/admin/bookings/{booking_id}`
-- `GET|POST|PUT|DELETE /api/v1/admin/therapists`
-- `GET|POST|PUT|DELETE /api/v1/admin/therapist-availabilities`
-- `GET|POST|PUT|DELETE /api/v1/admin/therapist-blackouts`
+- `POST /api/admin/login`
+- `POST /api/admin/forgot-password`
+- `POST /api/admin/reset-password`
+- `GET /api/admin/dashboard`
+- `GET /api/admin/inquiries`
+- `PATCH /api/admin/inquiries/{inquiry_id}`
+- `GET|POST|PUT|DELETE /api/admin/services`
+- `GET|POST|PUT|DELETE /api/admin/testimonials`
+- `GET|POST|PUT|DELETE /api/admin/nadi-camps`
+- `GET|POST|PUT|DELETE /api/admin/relaxation-therapies`
+- `GET|POST|PUT|DELETE /api/admin/alternative-treatments`
+- `GET|POST|PUT|DELETE /api/admin/panchakarma-core-therapies`
+- `GET|POST|PUT|DELETE /api/admin/panchakarma-other-treatments`
+- `GET|POST|PUT|DELETE /api/admin/booking-slots`
+- `GET /api/admin/bookings`
+- `PATCH /api/admin/bookings/{booking_id}`
+- `GET|POST|PUT|DELETE /api/admin/therapists`
+- `GET|POST|PUT|DELETE /api/admin/therapist-availabilities`
+- `GET|POST|PUT|DELETE /api/admin/therapist-blackouts`
 
 ## Authentication
 
 Admin routes require a bearer token returned by:
 
 ```text
-POST /api/v1/admin/login
+POST /api/admin/login
 ```
 
 Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign in.

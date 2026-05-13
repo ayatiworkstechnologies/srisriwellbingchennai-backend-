@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 def _email_settings_table_columns(db: Session) -> set[str]:
     return {
         column["name"]
-        for column in inspect(db.bind).get_columns("email_notification_settings")
+        for column in inspect(db.connection()).get_columns("email_notification_settings")
     }
 
 

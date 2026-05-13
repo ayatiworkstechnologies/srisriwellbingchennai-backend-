@@ -136,11 +136,11 @@ from ..deps import get_current_admin, get_current_super_admin
 from ...legacy import ACTIVE_FLAG_TRUE
 from ...security import get_password_hash
 
-router = APIRouter(prefix="/api/v1/admin")
+router = APIRouter(prefix="/api/admin")
 
 
 def _table_exists(db: Session, table_name: str) -> bool:
-    return table_name in inspect(db.bind).get_table_names()
+    return table_name in inspect(db.connection()).get_table_names()
 
 
 @router.post("/auth/login", response_model=TokenResponse, tags=["Admin Auth"])

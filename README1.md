@@ -91,7 +91,7 @@ http://127.0.0.1:8000
 Open this in your browser:
 
 ```text
-http://127.0.0.1:8000/health
+http://127.0.0.1:8000/api/health
 ```
 
 If everything is working, you should get a successful response from the health endpoint.

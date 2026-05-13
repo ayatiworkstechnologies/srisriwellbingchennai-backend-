@@ -81,6 +81,7 @@ def seed_default_content() -> None:
         _seed_testimonials(db)
         _seed_nadi_camps(db)
         _seed_relaxation_therapies(db)
+        _sync_relaxation_services(db)
         _seed_page_meta_settings(db)
         db.commit()
     finally:
@@ -88,17 +89,132 @@ def seed_default_content() -> None:
 
 
 def _seed_services(db: Session) -> None:
-    if db.query(Service).first():
-        return
+    service_records = [
+        {
+            "category": "main",
+            "title": "Nadi Pariksha",
+            "description": "A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.",
+            "benefits": [
+                "Identifies dosha imbalance through pulse reading",
+                "Supports personalized therapy and diet planning",
+                "Helps detect early wellness patterns",
+                "Non-invasive and comfortable assessment",
+            ],
+            "image": "/images/ser-1.jpg",
+            "sort_order": 1,
+        },
+        {
+            "category": "main",
+            "title": "Panchakarma Rituals",
+            "description": "A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.",
+            "benefits": [
+                "Supports deep detoxification and cleansing",
+                "Helps restore digestion and metabolic balance",
+                "Promotes lightness, energy, and clarity",
+                "Personalized rituals guided by Ayurvedic assessment",
+            ],
+            "image": "/images/ser-2.jpg",
+            "sort_order": 2,
+        },
+        {
+            "category": "main",
+            "title": "Marma Chikitsa",
+            "description": "An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.",
+            "benefits": [
+                "Activates vital energy points",
+                "Helps reduce stress and body tension",
+                "Supports natural healing and energy flow",
+                "Encourages relaxation and emotional balance",
+            ],
+            "image": "/images/ser-3.jpg",
+            "sort_order": 3,
+        },
+        {
+            "category": "main",
+            "title": "Osteopathic Therapy",
+            "description": "A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.",
+            "benefits": [
+                "Improves musculoskeletal alignment",
+                "Helps manage stiffness and chronic pain",
+                "Supports posture, mobility, and flexibility",
+                "Gentle hands-on care for whole-body function",
+            ],
+            "image": "/images/ser-4.jpg",
+            "sort_order": 4,
+        },
+        {
+            "category": "main",
+            "title": "Ozone Therapy",
+            "description": "An advanced restorative treatment utilized to address various chronic conditions and enhance overall systemic vitality through the healing properties of ozone.",
+            "benefits": [
+                "Supports systemic vitality and recovery",
+                "Helps improve oxygen utilization",
+                "May assist chronic wellness concerns",
+                "Complements integrative restorative care plans",
+            ],
+            "image": "/images/ser-5.jpg",
+            "sort_order": 5,
+        },
+        {
+            "category": "main",
+            "title": "Meru Therapy",
+            "description": "A specialized therapy deeply focused on spinal health and alignment, aiming to restore harmony and balance to the body's structural and energetic systems.",
+            "benefits": [
+                "Supports spinal health and alignment",
+                "Helps ease back, neck, and shoulder discomfort",
+                "Encourages structural and energetic balance",
+                "Promotes improved movement and body awareness",
+            ],
+            "image": "/images/ser-6.jpg",
+            "sort_order": 6,
+        },
+        {
+            "category": "main",
+            "title": "Craniosacral Therapy",
+            "description": "A gentle, hands-on technique that monitors the rhythm of cerebrospinal fluid to release tensions deep in the body, relieving pain and dysfunction.",
+            "benefits": [
+                "Gently releases deep body tension",
+                "Supports nervous system relaxation",
+                "May help reduce pain and dysfunction",
+                "Encourages calm, sleep, and inner ease",
+            ],
+            "image": "/images/ser-7.jpg",
+            "sort_order": 7,
+        },
+        {
+            "category": "main",
+            "title": "Pain Management Therapies",
+            "description": "Integrative treatments combining classical and contemporary therapies, including L&B pain management, to address chronic discomfort and restore natural mobility.",
+            "benefits": [
+                "Targets chronic discomfort and stiffness",
+                "Supports natural mobility and functional movement",
+                "Combines classical and contemporary therapies",
+                "Personalized approach for pain relief goals",
+            ],
+            "image": "/images/heal/manual.png",
+            "sort_order": 8,
+        },
+    ]
 
-    db.add_all(
-        [
-            Service(category="main", title="Nadi Pariksha", short_description="A non-invasive Ayurvedic pulse diagnosis that reveals dosha imbalances and guides personalised care.", description="A non-invasive Ayurvedic pulse diagnosis technique used by our practitioners to assess your doshas and identify imbalances, serving as the starting point for your personalized wellness journey.", benefits=join_lines(["Identifies dosha imbalances", "Supports personalised wellness plans", "Non-invasive and gentle consultation"]), image="/images/ser-1.jpg", sort_order=1),
-            Service(category="panchakarma", title="Panchakarma Rituals", short_description="A deeply restorative detox and cleansing programme for body, mind, and vitality.", description="A comprehensive Ayurvedic detoxification and cleansing program designed to eliminate deep-seated toxins and effectively restore balance to the body and mind.", benefits=join_lines(["Deep detoxification support", "Restores internal balance", "Enhances energy and clarity"]), image="/images/ser-2.jpg", sort_order=2),
-            Service(category="main", title="Marma Therapy", short_description="A focused Ayurvedic therapy that activates vital energy points for healing and calm.", description="An Ayurvedic technique involving gentle stimulation of specific vital energy points on the body to improve energy flow, reduce stress, and support deep healing.", benefits=join_lines(["Improves energy flow", "Supports stress relief", "Encourages holistic healing"]), image="/images/ser-3.jpg", sort_order=3),
-            Service(category="main", title="Osteopathic Therapy", short_description="A manual therapy approach that supports alignment, mobility, and structural wellbeing.", description="A manual therapy focused on the body's musculoskeletal system, aiming to improve overall health by strengthening the framework of the body and managing pain.", benefits=join_lines(["Supports better mobility", "Helps manage pain", "Improves structural balance"]), image="/images/ser-4.jpg", sort_order=4),
-        ]
-    )
+    legacy_titles = {"Marma Therapy": "Marma Chikitsa"}
+    for old_title, new_title in legacy_titles.items():
+        existing = db.query(Service).filter(Service.title == old_title).first()
+        if existing:
+            existing.title = new_title
+
+    for record in service_records:
+        item = db.query(Service).filter(Service.title == record["title"]).first()
+        if not item:
+            item = Service(title=record["title"])
+            db.add(item)
+
+        item.category = record["category"]
+        item.short_description = record["description"]
+        item.description = record["description"]
+        item.benefits = join_lines(record["benefits"])
+        item.image = record["image"]
+        item.sort_order = record["sort_order"]
+        item.is_active = "true"
 
 
 def _seed_content_categories(db: Session) -> None:
@@ -127,27 +243,168 @@ def _seed_testimonials(db: Session) -> None:
 
 
 def _seed_nadi_camps(db: Session) -> None:
-    if db.query(NadiCamp).first():
-        return
+    camp_records = [
+        ("Dr. K Aravindhan", "20/05/2026", "Chennai, Tamil Nadu", "Manickam M (9444004975)", "Gurukripa Agencies, No : 16, Aadhi Street , Villivakkam", 1),
+        ("Dr. S Meenakshi", "15/05/2026", "Pondicherry", "Saravanan (9843210987)", "Sri Auro Wellness Hall, Heritage Town", 2),
+        ("Dr. R Rajesh", "05/05/2026", "Coimbatore, Tamil Nadu", "Vijay (9765432109)", "Art of Living Center, Race Course", 3),
+        ("Dr. N Lakshmi", "10/06/2026", "Salem, Tamil Nadu", "Prakash (9123456789)", "Shiva Temple Premise, Fairlands", 4),
+        ("Dr. V Anitha", "22/05/2026", "Trichy, Tamil Nadu", "Ramesh (9876543210)", "Srirangam Community Hall", 5),
+        ("Dr. M Karthik", "02/05/2026", "Tirunelveli, Tamil Nadu", "Gopal (9944332211)", "Nellai Wellness Hub", 6),
+        ("Dr. P Swathi", "18/05/2026", "Vellore, Tamil Nadu", "Suresh (9000011122)", "Anna Salai Center", 7),
+    ]
 
-    db.add_all(
-        [
-            NadiCamp(doctor="Dr. K Aravindhan", camp_date="20/05/2026", location="Chennai, Tamil Nadu", contact="Manickam M (9444004975)", address="Gurukripa Agencies, No : 16, Aadhi Street, Villivakkam", status="active", sort_order=1),
-            NadiCamp(doctor="Dr. Priya Narayanan", camp_date="28/05/2026", location="Coimbatore, Tamil Nadu", contact="Sathish K (9876543210)", address="No. 24, Wellness Avenue, RS Puram, Coimbatore", status="active", sort_order=2),
-        ]
-    )
+    for doctor, camp_date, location, contact, address, sort_order in camp_records:
+        item = (
+            db.query(NadiCamp)
+            .filter(NadiCamp.doctor == doctor, NadiCamp.camp_date == camp_date)
+            .first()
+        )
+        if not item:
+            item = NadiCamp(doctor=doctor, camp_date=camp_date)
+            db.add(item)
+
+        item.location = location
+        item.contact = contact
+        item.address = address
+        item.status = "active"
+        item.sort_order = sort_order
+        item.is_active = "true"
 
 
 def _seed_relaxation_therapies(db: Session) -> None:
-    if db.query(RelaxationTherapy).first():
-        return
+    therapy_records = [
+        {
+            "title": "Abhyanga",
+            "duration": "45 mins",
+            "short_description": "An Ayurvedic massage that promotes wellbeing by applying warm oil on your entire body.",
+            "details": "Experience the benefits of Abhyanga, an Ayurvedic massage that promotes wellbeing by applying warm oil on your entire body. The oil is the central component of Abhyanga. When combined with massage strokes, it promotes overall health and wellness. It can be done by a therapist or self-administered at home.",
+            "benefits": ["Reduces the signs of aging", "Gives the body muscle tone & energy", "Gives the limbs a firmness", "Lubricates the joints", "Promotes blood circulation & detoxification", "Activates the body's internal organs", "Boosts endurance", "Calms the nerves", "Softens & smoothens skin"],
+            "image": "/images/relax/abhyanga.png",
+            "sort_order": 1,
+        },
+        {
+            "title": "Uzhichil",
+            "duration": "45 mins",
+            "short_description": "Effective full-body, deep tissue ayurvedic massage therapy with specific oil pressure.",
+            "details": "This is one of the most effective full-body, deep tissue ayurvedic massage therapy. Pressure is applied to the specific parts of the body with oil massage. This therapy is highly recommended for blood circulation as well as the nervous system.",
+            "benefits": ["Reduces pressure on the heart", "Treats nervous disorders", "Calms anxiety", "Good for insomnia & hypertension", "Relieves stress & headaches"],
+            "image": "/images/relax/uzhichil.png",
+            "sort_order": 2,
+        },
+        {
+            "title": "Reflexology",
+            "duration": "30 mins",
+            "short_description": "Pressure-point therapy for the feet to treat illnesses and strengthen body systems.",
+            "details": "Your foot is rubbed, pressed and squeezed on certain locations to treat illnesses. And when the entire foot is massaged, all of the body's systems is strengthened.",
+            "benefits": ["Provides deep relaxation", "Improves sleep quality", "Energizes all organs & body tissues", "Relieves anxiety & stress", "Enhances blood circulation in the lower half of the body", "Strengthens the feet", "Reduces stiffness & tiredness"],
+            "image": "/images/relax/foot.png",
+            "sort_order": 3,
+        },
+        {
+            "title": "Shirolepa",
+            "duration": "45 mins",
+            "short_description": "Soothing application of medicinal pastes on the scalp for psychosomatic relief.",
+            "details": "Medicinal pastes are applied over the entire scalp which is soothing and has relaxing properties. This time-tested Ayurveda therapy is an excellent treatment for a variety of psychosomatic ailments and boosting overall well-being.",
+            "benefits": ["Improves sleep quality", "Helps the visionary abilities", "When combined with yoga, it helps with anxiety", "Improves hair health", "Brings the pita dosh back into equilibrium"],
+            "image": "/images/relax/shirolepa.png",
+            "sort_order": 4,
+        },
+        {
+            "title": "Body Wrap",
+            "duration": "90 mins",
+            "short_description": "Natural aromatic body wrap enriched with Moringa for detoxification and nourishment.",
+            "details": "Also called Haritaka Lepam, this beauty treatment is enriched with Moringa's goodness. This Ayurveda body wrap is a natural aromatic paste of freshly ground Moringa Oleifera leaves. It offers powerful antioxidants to skin cells to keep the skin cleansed, moisturized, nourished and revitalized naturally.",
+            "benefits": ["Detoxifies the skin", "Improves circulation", "Rejuvenates & hydrates the skin", "Improves skin tone", "Is soothing, comforting & provides relaxation"],
+            "image": "/images/relax/chlorophyll.png",
+            "sort_order": 5,
+        },
+        {
+            "title": "Shirodhara",
+            "duration": "45 mins",
+            "short_description": "Lukewarm oil stream over the forehead to enhance the central nervous system.",
+            "details": "A deeply relaxing therapy during which the scalp and forehead are caressed by a thin stream of medicated lukewarm oil. Helps to enhance the functioning of the central nervous system. Prevents hair fall and premature greying. Good for insomnia, tension headaches, nervous disorders. Shirodhara is a more calm therapeutic head massage that has many positive effects on the body and the mind. Shirodhara is therefore superior than a head massage. After applying oil to the forehead, there is a brief massage performed in this procedure. And it really is as soothing as it sounds.",
+            "benefits": ["Activates intuition", "Improves sleep", "Reduces stress", "Soothes eyes", "Pacifies elevated vata dosha", "Improves cognitive abilities"],
+            "image": "/images/relax/shirodhara.png",
+            "sort_order": 6,
+        },
+        {
+            "title": "Head Massage",
+            "duration": "45 mins",
+            "short_description": "Holistic treatment targeting marma points to boost healing and sleep quality.",
+            "details": "Ayurveda head massage is a holistic treatment that involves applying mild pressure to the head, which has 31 marma points where arteries and veins intersect. This massage also benefits the scalp. Besides, it boosts the body's natural healing abilities and enhances sleep quality.",
+            "benefits": ["Boosts blood circulation", "Induces relaxation & deep sleep", "Stimulates hair growth", "Improves concentration", "Relieves stress, insomnia, depression & migraine pain"],
+            "image": "/images/relax/head-massage.png",
+            "sort_order": 7,
+        },
+        {
+            "title": "Head & Foot Massage",
+            "duration": "45 mins",
+            "short_description": "Combined therapy for cerebral nourishment and reflex point activation.",
+            "details": "Head massage helps to break down muscular knots and reduces chronic neck & shoulder discomfort. This procedure also promotes hair growth, nourishes cerebral arteries, and enhances blood circulation. Foot massage, on the other hand, concentrates on the reflex points in the feet to enhance blood circulation. This practice, in addition to giving relaxation, is beneficial to one's vision because foot massage nourishes our optic nerve.",
+            "benefits": ["Advances hair growth", "Nourishes the brain's arteries", "Improves blood circulation", "Relaxes the body", "Nourishes the optic nerve"],
+            "image": "/images/relax/head-foot.png",
+            "sort_order": 8,
+        },
+        {
+            "title": "Keshavarna",
+            "duration": "45 mins",
+            "short_description": "Hair care treatment with crushed herbs and oils to prevent dandruff and boost growth.",
+            "details": "This hair care treatment involves an energizing head massage, which is enhanced with freshly crushed herbs, butter and olive oil. This treatment encourages healthy hair development and aids with dandruff prevention.",
+            "benefits": ["Promotes healthy hair growth", "Helps in eradicating dandruff", "Releases stress & anxiety"],
+            "image": "/images/relax/keshavarna.png",
+            "sort_order": 9,
+        },
+        {
+            "title": "Mukhalepa",
+            "duration": "45 mins",
+            "short_description": "Natural Ayurveda facial therapy for skin purity, glow, and rejuvenation.",
+            "details": "An Ayurveda Facial Therapy which uses natural ingredients, freshly ground herbal blends & packs to maintain the purity of one's inner beauty. Besides - fruits, coconut extract and saffron - all form part of this herbal paste. This beauty therapy is relaxing due to the fragrant and aromatic oils used. This natural herbal beauty therapy is by far the best solution for our outer cosmetic skin requirements, bringing out our inner glow.",
+            "benefits": ["Keeps skin soft, glowing & radiant", "Natural & chemical free", "Reduces acne & pimples", "Prevents aging of the skin", "Moisturises & hydrates", "Improves skin tone"],
+            "image": "/images/relax/mukhalepa.png",
+            "sort_order": 10,
+        },
+    ]
 
-    db.add_all(
-        [
-            RelaxationTherapy(category="relax", title="Abhyanga", duration="45 mins", short_description="An Ayurvedic procedure involving warm medicated oil and gentle massage for relaxation.", details="Abhyanga is a traditional Ayurvedic full-body oil massage using warm herbal oils. It helps relax the body, improve blood circulation, nourish the skin, reduce fatigue, and calm the nervous system.", benefits=join_lines(["Relieves stress and tiredness", "Improves blood circulation", "Nourishes skin and body tissues", "Supports better sleep", "Helps relax muscles"]), image="/images/1446.jpg", sort_order=1),
-            RelaxationTherapy(category="relax", title="Shirodhara", duration="45 mins", short_description="A signature Ayurvedic therapy where warm oil is poured continuously over the forehead.", details="Shirodhara is a deeply calming therapy where warm medicated oil flows gently over the forehead. It is commonly used for stress relief, mental relaxation, sleep support, and emotional balance.", benefits=join_lines(["Calms the mind", "Reduces stress and anxiety", "Promotes better sleep", "Supports mental clarity", "Deep relaxation"]), image="/images/1446.jpg", sort_order=2),
-        ]
+    for record in therapy_records:
+        item = db.query(RelaxationTherapy).filter(RelaxationTherapy.title == record["title"]).first()
+        if not item:
+            item = RelaxationTherapy(title=record["title"])
+            db.add(item)
+
+        item.category = "relax"
+        item.duration = record["duration"]
+        item.short_description = record["short_description"]
+        item.details = record["details"]
+        item.benefits = join_lines(record["benefits"])
+        item.image = record["image"]
+        item.sort_order = record["sort_order"]
+        item.is_active = "true"
+
+
+def _sync_relaxation_services(db: Session) -> None:
+    therapies = (
+        db.query(RelaxationTherapy)
+        .filter(RelaxationTherapy.category == "relax")
+        .order_by(RelaxationTherapy.sort_order.asc(), RelaxationTherapy.id.asc())
+        .all()
     )
+
+    for therapy in therapies:
+        item = (
+            db.query(Service)
+            .filter(Service.category == "relax", Service.title == therapy.title)
+            .first()
+        )
+        if not item:
+            item = Service(category="relax", title=therapy.title)
+            db.add(item)
+
+        item.short_description = therapy.short_description
+        item.description = therapy.details
+        item.benefits = therapy.benefits
+        item.image = therapy.image
+        item.sort_order = therapy.sort_order
+        item.is_active = "true"
 
 
 def _seed_page_meta_settings(db: Session) -> None:
