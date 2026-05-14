@@ -45,6 +45,10 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         render_enabled = os.getenv("RENDER", "").lower() == "true"
+        production_enabled = render_enabled or os.getenv("ENVIRONMENT", "").lower() in {
+            "prod",
+            "production",
+        }
         parsed = urlparse(self.database_url)
         host = (parsed.hostname or "").lower()
 
@@ -69,6 +73,18 @@ class Settings(BaseSettings):
                 "Set DATABASE_URL to your MySQL service host, for example "
                 "'mysql+pymysql://USER:PASSWORD@mysql:3306/DBNAME' or your external MySQL host."
             )
+
+        if production_enabled:
+            if self.jwt_secret_key == "replace-with-a-long-random-secret" or len(self.jwt_secret_key) < 32:
+                raise ValueError(
+                    "Unsafe JWT_SECRET_KEY for production. Set JWT_SECRET_KEY to a unique secret "
+                    "with at least 32 characters."
+                )
+            if self.admin_password == "ChangeMe123!" or len(self.admin_password) < 10:
+                raise ValueError(
+                    "Unsafe ADMIN_PASSWORD for production. Set ADMIN_PASSWORD to a unique password "
+                    "with at least 10 characters."
+                )
 
     @property
     def frontend_origins(self) -> list[str]:

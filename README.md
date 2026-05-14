@@ -53,6 +53,7 @@ For Render deployment, use `render.env.example` as the checklist for service env
 
 ```env
 DATABASE_URL=mysql+pymysql://root:password@localhost:3306/srisriwellbeing
+ENVIRONMENT=development
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -107,9 +108,9 @@ The API will usually be available at `http://127.0.0.1:8000`.
 
 On startup, the application:
 
-- Creates database tables from SQLAlchemy metadata
 - Seeds the default admin user
 - Optionally seeds default content data when `SEED_DEFAULT_CONTENT=true`
+- Validates production safety when `ENVIRONMENT=production` or Render sets `RENDER=true`
 
 This happens in the FastAPI lifespan hook in [app/main.py](D:\ayati\srisri\srisriwellbingchennai-backend-\app\main.py:1).
 
@@ -180,7 +181,8 @@ Use the configured `ADMIN_EMAIL` and `ADMIN_PASSWORD` values from `.env` to sign
 ## Notes
 
 - CORS is restricted to the comma-separated origins configured in `FRONTEND_ORIGIN` plus any origins matched by `FRONTEND_ORIGIN_REGEX`.
-- The backend relies on Alembic migrations for schema changes and no longer creates tables during app startup.
+- The backend relies on Alembic migrations for schema changes and does not create tables during app startup.
+- Production requires a non-placeholder `JWT_SECRET_KEY` of at least 32 characters and a non-default `ADMIN_PASSWORD` of at least 10 characters.
 - `.env.example` is intended to stay committed, while `.env` should remain local only.
 - Inquiries now support optional lead-capture metadata: `source`, `service_interest`, and `page_path`.
 - Booking emails can be sent from admin, and public booking create/cancel flows can also send client emails when SMTP is configured and `MAIL_ENABLED=true`.

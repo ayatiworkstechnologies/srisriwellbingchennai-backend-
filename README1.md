@@ -58,6 +58,7 @@ Open `.env` and update values if needed. Example:
 
 ```env
 DATABASE_URL=mysql+pymysql://root:yourpassword@localhost:3306/srisriwellbeing
+ENVIRONMENT=development
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
@@ -98,7 +99,8 @@ If everything is working, you should get a successful response from the health e
 
 ## Important Notes
 
-- On app startup, the project also creates tables and seeds default data.
+- On app startup, the project seeds the admin user and optionally seeds default content.
+- Database tables are managed through Alembic migrations.
 - The admin user is seeded using `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env`.
 - CORS allows the comma-separated origins set in `FRONTEND_ORIGIN` plus any origins matched by `FRONTEND_ORIGIN_REGEX`.
 - This project uses FastAPI, SQLAlchemy, Alembic, and MySQL.
