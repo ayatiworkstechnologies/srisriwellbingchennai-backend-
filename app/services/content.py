@@ -203,6 +203,87 @@ def _seed_services(db: Session) -> None:
             "rating": 4.9,
             "sort_order": 8,
         },
+        {
+            "category": "alternative",
+            "title": "Osteopathy",
+            "description": "A drug-free, non-invasive manual therapy that aims to improve health across all body systems by manipulating and strengthening the musculoskeletal framework.",
+            "benefits": ["Supports whole-body alignment", "Helps improve mobility", "Encourages natural pain relief"],
+            "image": "/images/heal/osteopathy.png",
+            "rating": 4.8,
+            "sort_order": 1,
+        },
+        {
+            "category": "alternative",
+            "title": "Ozone Therapy",
+            "description": "A medical therapy that uses ozone gas to treat infections, wounds, and multiple diseases by inactivating bacteria, viruses, fungi, yeast, and protozoa.",
+            "benefits": ["Supports oxygen utilization", "Complements restorative care", "Helps strengthen systemic vitality"],
+            "image": "/images/heal/ozone.png",
+            "rating": 4.7,
+            "sort_order": 2,
+        },
+        {
+            "category": "alternative",
+            "title": "Meru Chikitsa",
+            "description": "An ancient Ayurvedic spinal therapy involving specific manipulations of the vertebral column to realign the spine and restore the flow of prana through the body.",
+            "benefits": ["Supports spinal alignment", "Encourages prana flow", "Helps ease structural discomfort"],
+            "image": "/images/heal/meru.png",
+            "rating": 4.8,
+            "sort_order": 3,
+        },
+        {
+            "category": "alternative",
+            "title": "Rakkenho",
+            "description": "A Japanese holistic healing system based on the correction of energy flow through the body's meridians, promoting natural self-healing and deep relaxation.",
+            "benefits": ["Encourages energy balance", "Promotes deep relaxation", "Supports natural self-healing"],
+            "image": "/images/heal/rakkenho.png",
+            "rating": 4.8,
+            "sort_order": 4,
+        },
+        {
+            "category": "alternative",
+            "title": "L&B Therapy",
+            "description": "A transformative bodywork modality that integrates breath, movement, and touch to release deep-seated physical and emotional patterns held in the body.",
+            "benefits": ["Integrates breath and movement", "Helps release stored tension", "Supports emotional ease"],
+            "image": "/images/heal/l&b.png",
+            "rating": 4.8,
+            "sort_order": 5,
+        },
+        {
+            "category": "alternative",
+            "title": "Manual Lymphatic Drainage",
+            "description": "A gentle rhythmic massage technique that stimulates the lymphatic system to drain excess fluid, reduce swelling, and support the body's natural detoxification process.",
+            "benefits": ["Stimulates lymph flow", "Helps reduce fluid retention", "Supports natural detoxification"],
+            "image": "/images/heal/manual.png",
+            "rating": 4.8,
+            "sort_order": 6,
+        },
+        {
+            "category": "alternative",
+            "title": "Marma Chikitsa",
+            "description": "Marma Chikitsa involves the stimulation of vital energy points on the body to activate the body's innate healing intelligence and restore the flow of prana.",
+            "benefits": ["Activates vital energy points", "Supports prana flow", "Encourages natural healing"],
+            "image": "/images/heal/marma.png",
+            "rating": 4.8,
+            "sort_order": 7,
+        },
+        {
+            "category": "alternative",
+            "title": "Reflexology",
+            "description": "A therapeutic method based on the principle that there are reflexes in the feet, hands, and ears that correspond to every part, organ, and gland in the body.",
+            "benefits": ["Supports organ reflex points", "Promotes relaxation", "Helps improve circulation"],
+            "image": "/images/heal/reflexology.png",
+            "rating": 4.8,
+            "sort_order": 8,
+        },
+        {
+            "category": "alternative",
+            "title": "Light & Sound Therapy",
+            "description": "An innovative therapy that uses specific frequencies of light and sound to synchronise brain waves, reduce stress, and support mental and emotional wellness.",
+            "benefits": ["Supports mental calm", "Uses light and sound frequencies", "Helps reduce stress"],
+            "image": "/images/heal/light.png",
+            "rating": 4.7,
+            "sort_order": 9,
+        },
     ]
 
     legacy_titles = {"Marma Therapy": "Marma Chikitsa"}
@@ -212,7 +293,10 @@ def _seed_services(db: Session) -> None:
             existing.title = new_title
 
     for record in service_records:
-        item = db.query(Service).filter(Service.title == record["title"]).first()
+        query = db.query(Service).filter(Service.title == record["title"])
+        if record["category"] != "main":
+            query = query.filter(Service.category == record["category"])
+        item = query.first()
         if not item:
             item = Service(title=record["title"])
             db.add(item)

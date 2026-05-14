@@ -42,6 +42,7 @@ from ...schemas import (
     RelaxationTherapyResponse,
     ServiceResponse,
     TestimonialResponse,
+    TherapistResponse,
     TherapyBookingCreate,
     TherapyBookingResponse,
 )
@@ -53,6 +54,7 @@ from ...services.booking import (
     get_remaining_capacity,
     serialize_booking,
     serialize_cancel_response,
+    serialize_therapist,
 )
 from ...services.mail import (
     build_inquiry_auto_reply_email,
@@ -206,6 +208,18 @@ def list_public_testimonials(
 def list_public_nadi_camps(db: Session = Depends(get_db)):
     items = list_active_entities(NadiCamp, db)
     return [as_nadi_camp(item) for item in items if item.status == "active"]
+
+
+@router.get("/content/team", response_model=list[TherapistResponse], tags=["Public Content"])
+@router.get("/public/team", response_model=list[TherapistResponse], include_in_schema=False)
+def list_public_team(db: Session = Depends(get_db)):
+    items = (
+        db.query(Therapist)
+        .filter(Therapist.is_active == ACTIVE_FLAG_TRUE)
+        .order_by(Therapist.full_name.asc(), Therapist.id.asc())
+        .all()
+    )
+    return [serialize_therapist(item) for item in items]
 
 
 @router.get("/content/page-meta", response_model=list[PageMetaSettingResponse], tags=["Public Content"])
