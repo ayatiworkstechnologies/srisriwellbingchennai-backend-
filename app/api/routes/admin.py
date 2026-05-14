@@ -573,8 +573,14 @@ def delete_service(entity_id: int, _: AdminUser = Depends(get_current_super_admi
 
 @router.get("/content/testimonials", response_model=list[TestimonialResponse], tags=["Admin Content"])
 @router.get("/testimonials", response_model=list[TestimonialResponse], include_in_schema=False)
-def list_admin_testimonials(_: AdminUser = Depends(get_current_super_admin), db: Session = Depends(get_db)):
+def list_admin_testimonials(
+    category: str | None = Query(default=None, min_length=2),
+    _: AdminUser = Depends(get_current_super_admin),
+    db: Session = Depends(get_db),
+):
     items = list_entities(Testimonial, db)
+    if category:
+        items = [item for item in items if item.category.strip().lower() == category.strip().lower()]
     return [as_testimonial(item) for item in items]
 
 

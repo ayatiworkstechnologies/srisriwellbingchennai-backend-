@@ -300,6 +300,8 @@ class ServiceBase(BaseModel):
     description: str | None = Field(default=None, max_length=5000)
     benefits: list[str] = Field(min_length=1)
     image: str = Field(min_length=1, max_length=255)
+    duration: str = Field(default="", max_length=50)
+    rating: float | None = Field(default=None, ge=0, le=5)
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
 
@@ -310,6 +312,15 @@ class ServiceBase(BaseModel):
             value = value.strip()
             return value or None
         return value
+
+    @field_validator("duration", mode="before")
+    @classmethod
+    def strip_service_duration(cls, value):
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        return str(value).strip()
 
     @field_validator("benefits", mode="before")
     @classmethod
@@ -348,10 +359,18 @@ class ServiceResponse(ServiceBase):
 
 
 class TestimonialBase(BaseModel):
+    category: str = Field(default="home", min_length=2, max_length=50)
     name: str = Field(min_length=2, max_length=255)
     review: str = Field(min_length=10, max_length=5000)
     sort_order: int = Field(default=0, ge=0)
     is_active: bool = True
+
+    @field_validator("category", "name", "review", mode="before")
+    @classmethod
+    def strip_testimonial_text(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
 
 
 class TestimonialCreate(TestimonialBase):

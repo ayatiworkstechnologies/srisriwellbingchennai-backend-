@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import Date, DateTime, Integer, String, Text, Time
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -45,6 +45,8 @@ class Service(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     benefits: Mapped[str] = mapped_column(Text, nullable=False, default="")
     image: Mapped[str] = mapped_column(String(255), nullable=False)
+    duration: Mapped[str] = mapped_column(String(50), nullable=False, default="")
+    rating: Mapped[float | None] = mapped_column(Float, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)
     is_active: Mapped[str] = mapped_column(String(10), nullable=False, default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
@@ -66,6 +68,7 @@ class Testimonial(Base):
     __tablename__ = "testimonials"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, default="home", index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     review: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, index=True)

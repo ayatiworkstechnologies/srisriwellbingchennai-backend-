@@ -80,6 +80,7 @@ def seed_default_content() -> None:
         _seed_services(db)
         _seed_testimonials(db)
         _seed_nadi_camps(db)
+        _seed_alternative_treatments(db)
         _seed_relaxation_therapies(db)
         _sync_relaxation_services(db)
         _seed_page_meta_settings(db)
@@ -101,6 +102,7 @@ def _seed_services(db: Session) -> None:
                 "Non-invasive and comfortable assessment",
             ],
             "image": "/images/ser-1.jpg",
+            "rating": 4.9,
             "sort_order": 1,
         },
         {
@@ -114,6 +116,7 @@ def _seed_services(db: Session) -> None:
                 "Personalized rituals guided by Ayurvedic assessment",
             ],
             "image": "/images/ser-2.jpg",
+            "rating": 4.9,
             "sort_order": 2,
         },
         {
@@ -127,6 +130,7 @@ def _seed_services(db: Session) -> None:
                 "Encourages relaxation and emotional balance",
             ],
             "image": "/images/ser-3.jpg",
+            "rating": 4.8,
             "sort_order": 3,
         },
         {
@@ -140,6 +144,7 @@ def _seed_services(db: Session) -> None:
                 "Gentle hands-on care for whole-body function",
             ],
             "image": "/images/ser-4.jpg",
+            "rating": 4.8,
             "sort_order": 4,
         },
         {
@@ -153,6 +158,7 @@ def _seed_services(db: Session) -> None:
                 "Complements integrative restorative care plans",
             ],
             "image": "/images/ser-5.jpg",
+            "rating": 4.7,
             "sort_order": 5,
         },
         {
@@ -166,6 +172,7 @@ def _seed_services(db: Session) -> None:
                 "Promotes improved movement and body awareness",
             ],
             "image": "/images/ser-6.jpg",
+            "rating": 4.8,
             "sort_order": 6,
         },
         {
@@ -179,6 +186,7 @@ def _seed_services(db: Session) -> None:
                 "Encourages calm, sleep, and inner ease",
             ],
             "image": "/images/ser-7.jpg",
+            "rating": 4.8,
             "sort_order": 7,
         },
         {
@@ -192,6 +200,7 @@ def _seed_services(db: Session) -> None:
                 "Personalized approach for pain relief goals",
             ],
             "image": "/images/heal/manual.png",
+            "rating": 4.9,
             "sort_order": 8,
         },
     ]
@@ -213,33 +222,62 @@ def _seed_services(db: Session) -> None:
         item.description = record["description"]
         item.benefits = join_lines(record["benefits"])
         item.image = record["image"]
+        item.duration = record.get("duration", "")
+        item.rating = record.get("rating")
         item.sort_order = record["sort_order"]
         item.is_active = "true"
 
 
 def _seed_content_categories(db: Session) -> None:
-    if db.query(ContentCategory).first():
-        return
+    category_records = [
+        ("main", "Main", "Homepage and main therapy/service content.", 1),
+        ("relax", "Relax", "Relaxation therapy and renewal content.", 2),
+        ("relax-sub", "Relax Sub", "Head, hair, and facial renewal therapy content.", 3),
+        ("alternative", "Alternative", "Alternative and integrative therapy content.", 4),
+        ("panchakarma", "Panchakarma", "Panchakarma and detox-related content.", 5),
+    ]
 
-    db.add_all(
-        [
-            ContentCategory(slug="main", label="Main", description="Homepage and main therapy/service content.", sort_order=1),
-            ContentCategory(slug="relax", label="Relax", description="Relaxation therapy and renewal content.", sort_order=2),
-            ContentCategory(slug="panchakarma", label="Panchakarma", description="Panchakarma and detox-related content.", sort_order=3),
-        ]
-    )
+    for slug, label, description, sort_order in category_records:
+        item = db.query(ContentCategory).filter(ContentCategory.slug == slug).first()
+        if not item:
+            item = ContentCategory(slug=slug)
+            db.add(item)
+
+        item.label = label
+        item.description = description
+        item.sort_order = sort_order
+        item.is_active = "true"
 
 
 def _seed_testimonials(db: Session) -> None:
-    if db.query(Testimonial).first():
-        return
+    testimonial_records = [
+        ("home", "Anusha Rajan", "A deeply soothing and authentic experience. Netra Tejas felt gentle yet remarkably effective, bringing clarity and comfort in the most natural way. A refined approach to non-invasive care that truly delivers.", 1),
+        ("home", "Muthukrishnan Gopal", "An exceptional destination for authentic Ayurvedic care. The experience is thoughtfully curated, offering both depth and genuine healing in a calm, welcoming environment.", 2),
+        ("home", "Meera Venkatesh", "What stood out was the level of personalisation. Beginning with Nadi Pariksha, every therapy felt aligned to my body's needs. The experience was unhurried, intuitive, and deeply restorative.", 3),
+        ("home", "Rohit Subramanian", "From Abhyanga to relaxation therapies, each session brought a noticeable sense of lightness and ease. The care extended to every member of the family, making it a truly holistic experience.", 4),
+        ("relax", "Priya S.", "The Nadi Pariksha consultation was eye-opening. The doctors accurately pinpointed my digestive issues and the tailored Ayurvedic diet transformed my health within weeks.", 1),
+        ("relax", "Ramesh K.", "I've been to many spas and wellness centers, but the authenticity and serene ambiance here is unmatched. The stress relief therapies are truly a lifesaver for my corporate lifestyle.", 2),
+        ("relax", "Anita M.", "Exceptional care and truly personalized treatments. The staff goes above and beyond to make you feel comfortable and understood. Highly recommend for chronic joint pain.", 3),
+        ("nadi", "Ruban Kumar", "The Nadi Pariksha experience I had at Sri Sri Wellbeing was the best thing I've done for my health. The doctor immediately identified my issues and I got a customised set of treatments and supplements from my visits.", 1),
+        ("nadi", "Priya Sharma", "I was suffering from chronic digestive issues for years. The Nadi Vaidya accurately identified the root cause through pulse diagnosis and recommended a personalised treatment plan.", 2),
+        ("nadi", "Arjun Menon", "As someone dealing with stress-related health problems, Nadi Pariksha was a revelation. The Ayurvedic treatments and lifestyle changes suggested have transformed my sleep quality and mental clarity.", 3),
+        ("netra", "Anusha Rajan", "Netra Tejas felt gentle yet remarkably effective, bringing clarity and comfort in the most natural way.", 1),
+        ("netra", "Muthukrishnan Gopal", "An exceptional destination for authentic Ayurvedic care with a calm, welcoming environment.", 2),
+    ]
 
-    db.add_all(
-        [
-            Testimonial(name="Anusha Rajan", review="A deeply soothing and authentic experience. Netra Tejas felt gentle yet remarkably effective, bringing clarity and comfort in the most natural way. A refined approach to non-invasive care that truly delivers.", sort_order=1),
-            Testimonial(name="Muthukrishnan Gopal", review="An exceptional destination for authentic Ayurvedic care. The experience is thoughtfully curated, offering both depth and genuine healing in a calm, welcoming environment.", sort_order=2),
-        ]
-    )
+    for category, name, review, sort_order in testimonial_records:
+        item = (
+            db.query(Testimonial)
+            .filter(Testimonial.category == category, Testimonial.name == name)
+            .first()
+        )
+        if not item:
+            item = Testimonial(category=category, name=name)
+            db.add(item)
+
+        item.review = review
+        item.sort_order = sort_order
+        item.is_active = "true"
 
 
 def _seed_nadi_camps(db: Session) -> None:
@@ -267,6 +305,33 @@ def _seed_nadi_camps(db: Session) -> None:
         item.contact = contact
         item.address = address
         item.status = "active"
+        item.sort_order = sort_order
+        item.is_active = "true"
+
+
+def _seed_alternative_treatments(db: Session) -> None:
+    treatment_records = [
+        ("osteopathy", "Osteopathy", "A drug-free, non-invasive manual therapy that aims to improve health across all body systems by manipulating and strengthening the musculoskeletal framework.", "/images/heal/osteopathy.png", 1),
+        ("ozone", "Ozone Therapy", "A medical therapy that uses ozone gas to treat infections, wounds, and multiple diseases by inactivating bacteria, viruses, fungi, yeast, and protozoa.", "/images/heal/ozone.png", 2),
+        ("meru-chikitsa", "Meru Chikitsa", "An ancient Ayurvedic spinal therapy involving specific manipulations of the vertebral column to realign the spine and restore the flow of prana through the body.", "/images/heal/meru.png", 3),
+        ("rakkenho", "Rakkenho", "A Japanese holistic healing system based on the correction of energy flow through the body's meridians, promoting natural self-healing and deep relaxation.", "/images/heal/rakkenho.png", 4),
+        ("lb-therapy", "L&B Therapy", "A transformative bodywork modality that integrates breath, movement, and touch to release deep-seated physical and emotional patterns held in the body.", "/images/heal/l&b.png", 5),
+        ("lymphatic", "Manual Lymphatic Drainage", "A gentle rhythmic massage technique that stimulates the lymphatic system to drain excess fluid, reduce swelling, and support the body's natural detoxification process.", "/images/heal/manual.png", 6),
+        ("marma", "Marma Chikitsa", "Marma Chikitsa involves the stimulation of vital energy points on the body to activate the body's innate healing intelligence and restore the flow of prana.", "/images/heal/marma.png", 7),
+        ("reflexology", "Reflexology", "A therapeutic method based on the principle that there are reflexes in the feet, hands, and ears that correspond to every part, organ, and gland in the body.", "/images/heal/reflexology.png", 8),
+        ("light-sound", "Light & Sound Therapy", "An innovative therapy that uses specific frequencies of light and sound to synchronise brain waves, reduce stress, and support mental and emotional wellness.", "/images/heal/light.png", 9),
+    ]
+
+    for item_id, name, short_desc, image, sort_order in treatment_records:
+        item = db.query(AlternativeTreatment).filter(AlternativeTreatment.item_id == item_id).first()
+        if not item:
+            item = AlternativeTreatment(item_id=item_id)
+            db.add(item)
+
+        item.name = name
+        item.category = "alternative"
+        item.short_desc = short_desc
+        item.image = image
         item.sort_order = sort_order
         item.is_active = "true"
 
@@ -301,6 +366,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
             "sort_order": 3,
         },
         {
+            "category": "relax-sub",
             "title": "Shirolepa",
             "duration": "45 mins",
             "short_description": "Soothing application of medicinal pastes on the scalp for psychosomatic relief.",
@@ -346,6 +412,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
             "sort_order": 8,
         },
         {
+            "category": "relax-sub",
             "title": "Keshavarna",
             "duration": "45 mins",
             "short_description": "Hair care treatment with crushed herbs and oils to prevent dandruff and boost growth.",
@@ -355,6 +422,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
             "sort_order": 9,
         },
         {
+            "category": "relax-sub",
             "title": "Mukhalepa",
             "duration": "45 mins",
             "short_description": "Natural Ayurveda facial therapy for skin purity, glow, and rejuvenation.",
@@ -371,7 +439,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
             item = RelaxationTherapy(title=record["title"])
             db.add(item)
 
-        item.category = "relax"
+        item.category = record.get("category", "relax")
         item.duration = record["duration"]
         item.short_description = record["short_description"]
         item.details = record["details"]
@@ -384,7 +452,7 @@ def _seed_relaxation_therapies(db: Session) -> None:
 def _sync_relaxation_services(db: Session) -> None:
     therapies = (
         db.query(RelaxationTherapy)
-        .filter(RelaxationTherapy.category == "relax")
+        .filter(RelaxationTherapy.category.in_(["relax", "relax-sub"]))
         .order_by(RelaxationTherapy.sort_order.asc(), RelaxationTherapy.id.asc())
         .all()
     )
@@ -392,17 +460,21 @@ def _sync_relaxation_services(db: Session) -> None:
     for therapy in therapies:
         item = (
             db.query(Service)
-            .filter(Service.category == "relax", Service.title == therapy.title)
+            .filter(Service.title == therapy.title)
             .first()
         )
         if not item:
-            item = Service(category="relax", title=therapy.title)
+            item = Service(category=therapy.category, title=therapy.title)
             db.add(item)
 
+        item.category = therapy.category
         item.short_description = therapy.short_description
         item.description = therapy.details
         item.benefits = therapy.benefits
         item.image = therapy.image
+        item.duration = therapy.duration
+        if item.rating is None:
+            item.rating = 4.8
         item.sort_order = therapy.sort_order
         item.is_active = "true"
 
@@ -436,6 +508,8 @@ def as_service(item: Service) -> ServiceResponse:
         description=item.description,
         benefits=split_lines(item.benefits),
         image=item.image,
+        duration=item.duration,
+        rating=item.rating,
         sort_order=item.sort_order,
         is_active=is_active_flag(item.is_active),
         created_at=item.created_at,
@@ -445,6 +519,7 @@ def as_service(item: Service) -> ServiceResponse:
 def as_testimonial(item: Testimonial) -> TestimonialResponse:
     return TestimonialResponse(
         id=item.id,
+        category=item.category,
         name=item.name,
         review=item.review,
         sort_order=item.sort_order,

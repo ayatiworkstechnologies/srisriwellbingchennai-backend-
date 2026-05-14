@@ -193,8 +193,11 @@ def list_public_managed_categories(db: Session = Depends(get_db)):
 
 @router.get("/content/testimonials", response_model=list[TestimonialResponse], tags=["Public Content"])
 @router.get("/public/testimonials", response_model=list[TestimonialResponse], include_in_schema=False)
-def list_public_testimonials(db: Session = Depends(get_db)):
-    items = list_active_entities(Testimonial, db)
+def list_public_testimonials(
+    category: str | None = Query(default=None, min_length=2),
+    db: Session = Depends(get_db),
+):
+    items = list_active_entities_by_category(Testimonial, category, db) if category else list_active_entities(Testimonial, db)
     return [as_testimonial(item) for item in items]
 
 
