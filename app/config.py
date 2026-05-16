@@ -7,6 +7,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+UNSAFE_ADMIN_PASSWORDS = {
+    "ChangeMe123!",
+    "replace-with-secure-admin-password",
+}
+
+UNSAFE_JWT_SECRET_KEYS = {
+    "replace-with-a-long-random-secret",
+}
+
 
 class Settings(BaseSettings):
     project_name: str = "Sri Sri Wellbeing Chennai API"
@@ -75,12 +84,12 @@ class Settings(BaseSettings):
             )
 
         if production_enabled:
-            if self.jwt_secret_key == "replace-with-a-long-random-secret" or len(self.jwt_secret_key) < 32:
+            if self.jwt_secret_key in UNSAFE_JWT_SECRET_KEYS or len(self.jwt_secret_key) < 32:
                 raise ValueError(
                     "Unsafe JWT_SECRET_KEY for production. Set JWT_SECRET_KEY to a unique secret "
                     "with at least 32 characters."
                 )
-            if self.admin_password == "ChangeMe123!" or len(self.admin_password) < 10:
+            if self.admin_password in UNSAFE_ADMIN_PASSWORDS or len(self.admin_password) < 10:
                 raise ValueError(
                     "Unsafe ADMIN_PASSWORD for production. Set ADMIN_PASSWORD to a unique password "
                     "with at least 10 characters."

@@ -104,6 +104,20 @@ uvicorn app.main:app --reload
 
 The API will usually be available at `http://127.0.0.1:8000`.
 
+## Render Deployment
+
+The production guard runs before Alembic migrations. If Render exits with
+`Unsafe ADMIN_PASSWORD for production`, update the backend service environment
+variables in Render Dashboard before redeploying:
+
+- `ADMIN_PASSWORD`: set a unique password with at least 10 characters. Do not use `ChangeMe123!` or `replace-with-secure-admin-password`.
+- `JWT_SECRET_KEY`: set a unique random secret with at least 32 characters. Do not use `replace-with-a-long-random-secret`.
+- `DATABASE_URL`: set the MySQL connection string for the hosted database, not localhost.
+
+After saving the environment variables, trigger a manual redeploy. The command
+`alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT` can stay
+as-is.
+
 ## Application Startup Behavior
 
 On startup, the application:
