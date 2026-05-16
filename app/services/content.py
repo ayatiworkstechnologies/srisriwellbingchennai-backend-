@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
+from ..config import get_settings, is_safe_admin_password
 from ..database import SessionLocal
 from ..legacy import is_active_flag
 from ..models import (
@@ -52,18 +52,24 @@ def seed_admin_user() -> None:
     db = SessionLocal()
     try:
         existing_admin = db.query(AdminUser).filter(AdminUser.email == settings.admin_email).first()
-        hashed_password = get_password_hash(settings.admin_password)
+        safe_admin_password = is_safe_admin_password(settings.admin_password)
         if existing_admin:
             existing_admin.full_name = "Sri Sri Wellbeing Admin"
-            existing_admin.hashed_password = hashed_password
             existing_admin.role = "super_admin"
             existing_admin.is_active = "true"
+            if safe_admin_password or not settings.is_production:
+                existing_admin.hashed_password = get_password_hash(settings.admin_password)
         else:
+            if settings.is_production and not safe_admin_password:
+                raise ValueError(
+                    "Unsafe ADMIN_PASSWORD for production. Set ADMIN_PASSWORD to a unique password "
+                    "with at least 10 characters before creating the initial admin user."
+                )
             db.add(
                 AdminUser(
                     email=settings.admin_email,
                     full_name="Sri Sri Wellbeing Admin",
-                    hashed_password=hashed_password,
+                    hashed_password=get_password_hash(settings.admin_password),
                     role="super_admin",
                     is_active="true",
                 )

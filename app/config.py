@@ -17,6 +17,10 @@ UNSAFE_JWT_SECRET_KEYS = {
 }
 
 
+def is_safe_admin_password(password: str) -> bool:
+    return password not in UNSAFE_ADMIN_PASSWORDS and len(password) >= 10
+
+
 class Settings(BaseSettings):
     project_name: str = "Sri Sri Wellbeing Chennai API"
     database_url: str = "mysql+pymysql://root:password@localhost:3306/srisriwellbeing"
@@ -89,11 +93,13 @@ class Settings(BaseSettings):
                     "Unsafe JWT_SECRET_KEY for production. Set JWT_SECRET_KEY to a unique secret "
                     "with at least 32 characters."
                 )
-            if self.admin_password in UNSAFE_ADMIN_PASSWORDS or len(self.admin_password) < 10:
-                raise ValueError(
-                    "Unsafe ADMIN_PASSWORD for production. Set ADMIN_PASSWORD to a unique password "
-                    "with at least 10 characters."
-                )
+
+    @property
+    def is_production(self) -> bool:
+        return os.getenv("RENDER", "").lower() == "true" or os.getenv("ENVIRONMENT", "").lower() in {
+            "prod",
+            "production",
+        }
 
     @property
     def frontend_origins(self) -> list[str]:
